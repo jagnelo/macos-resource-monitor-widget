@@ -306,17 +306,35 @@ final class StatusBarController: NSObject {
     /// Battery-style hover pills — deliberately not the vibrantDark
     /// right-click context menu. Covered by FallbackWidgetTests.
     func fallbackSelectorMenu() -> NSMenu {
-        let root = NSHostingView(rootView: FallbackPopover(rows: fallbackRows()) { [weak self] kind in
-            self?.enableWidget(kind)
-        })
-        // Natural content width (a short checklist, not a 290pt panel).
-        root.setFrameSize(NSSize(width: root.fittingSize.width, height: max(root.fittingSize.height, 60)))
         let menu = NSMenu()
         menu.autoenablesItems = false
         let item = NSMenuItem()
-        item.view = root
         menu.addItem(item)
+        // AppKit enforces a minimum menu width: anything narrower leaves dead
+        // trailing space beside the content. Measure it and widen the content
+        // floor to match, so rows and hover pills fill the panel edge to
+        // edge with exactly equal side margins. Iterate: the menu re-lays
+        // out as the view grows.
+        item.view = fallbackHost(minWidth: 0)
+        for _ in 0..<4 {
+            menu.update()
+            let slack = menu.size.width - (item.view?.frame.width ?? 0)
+            guard slack > 0.5 else { break }
+            item.view = fallbackHost(minWidth: (item.view?.frame.width ?? 0) + slack)
+        }
+        menu.update()
         return menu
+    }
+
+    /// Hosted fallback panel sized to its content, floored at minWidth so it
+    /// can be grown to the menu's laid-out width (see fallbackSelectorMenu).
+    func fallbackHost(minWidth: CGFloat) -> NSHostingView<FallbackPopover> {
+        let root = NSHostingView(rootView: FallbackPopover(rows: fallbackRows()) { [weak self] kind in
+            self?.enableWidget(kind)
+        })
+        let size = root.fittingSize
+        root.setFrameSize(NSSize(width: max(size.width, minWidth), height: max(size.height, 60)))
+        return root
     }
 
     /// Row data driving the fallback panel. Covered by FallbackWidgetTests.

@@ -41,6 +41,14 @@ final class FallbackWidgetTests: XCTestCase {
         XCTAssertNil(menu.appearance)
     }
 
+    func testFallbackPanelFillsMenuWidth() {
+        // AppKit pads narrow menus out to a minimum width; the content must
+        // fill it, otherwise rows and hover pills hug the left with dead
+        // space trailing. Left and right margins end up exactly equal.
+        let menu = makeController().fallbackSelectorMenu()
+        XCTAssertEqual(menu.items[0].view?.frame.width ?? 0, menu.size.width)
+    }
+
     func testFallbackAnchorUsesNarrowMenuWidth() {
         // anchorX keeps the menu's right edge on screen; a narrow fallback
         // panel clamps later than a 316pt widget panel.
