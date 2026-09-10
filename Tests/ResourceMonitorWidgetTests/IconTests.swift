@@ -50,4 +50,40 @@ final class IconTests: XCTestCase {
         XCTAssertTrue(image.isTemplate)
         XCTAssertEqual(image.size, NSSize(width: 18, height: 13))
     }
+
+    func testGaugeGeometryMatchesLogo() {
+        // Locks the shared numbers so the glyph and the AppIcon artwork can
+        // never drift: 150° start, 240° clockwise sweep (gap at bottom),
+        // needle 42% along the sweep (≈49.2°).
+        XCTAssertEqual(gaugeArcStart, 150)
+        XCTAssertEqual(gaugeArcSweep, 240)
+        XCTAssertEqual(gaugeNeedleT, 0.42)
+        let needle = Double(gaugeArcStart - gaugeArcSweep * gaugeNeedleT)
+        XCTAssertEqual(needle, 49.2, accuracy: 0.0001)
+    }
+
+    func testFallbackArcReachesBottomLikeLogo() {
+        // The logo sweep runs 240° (150° → -90°); the first fallback draft
+        // swept only 120° and left the whole lower half empty. Probe two
+        // pixels only the full sweep inks: the crown and the lower-right
+        // quadrant. Rendered explicitly 1x so coordinates are exact; the
+        // flip-cancel makes the bitmap context behave like the (unflipped)
+        // menu-bar context, otherwise the probes would assert mirrored rows.
+        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 18, pixelsHigh: 13,
+                                   bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                   colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        if let ctx = NSGraphicsContext.current?.cgContext {
+            ctx.translateBy(x: 0, y: 13)
+            ctx.scaleBy(x: 1, y: -1)
+        }
+        makeFallbackImage().draw(in: NSRect(x: 0, y: 0, width: 18, height: 13))
+        NSGraphicsContext.restoreGraphicsState()
+        func alpha(_ x: Int, _ y: Int) -> CGFloat {
+            rep.colorAt(x: x, y: y)?.alphaComponent ?? 0
+        }
+        XCTAssertGreaterThan(alpha(9, 11), 0.05, "crown must be inked")
+        XCTAssertGreaterThan(alpha(12, 3), 0.05, "240° sweep must reach the lower-right quadrant")
+    }
 }

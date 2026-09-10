@@ -16,6 +16,16 @@ public enum MeterKind: Int, Sendable { case cpu = 0, memory = 1, disk = 2 }
 
 private let meterStates = 10.0
 
+/// Logo-exact gauge geometry (AppKit degrees, y-up), shared by the AppIcon
+/// artwork and the fallback glyph so the two can never drift: the track
+/// starts at 150° and sweeps 240° clockwise, leaving the gap at the bottom;
+/// the needle sits 42% along the sweep (≈49.2°). All other gauge measures
+/// are proportions of the track radius: width 92/300, needle length 232/300
+/// and width 34/300, hub ring 56/300 with a 32/300 punched center.
+let gaugeArcStart: CGFloat = 150
+let gaugeArcSweep: CGFloat = 240
+let gaugeNeedleT: CGFloat = 0.42
+
 public func quantizedFraction(_ fraction: Double) -> Double {
     (min(max(fraction, 0), 1) * meterStates).rounded() / meterStates
 }
@@ -60,26 +70,45 @@ public func makeStatusImage(kind: MeterKind, fraction: Double, percentText: Stri
     return image
 }
 
-/// Launcher glyph shown when all three widgets are hidden: a miniature
-/// gauge in the same monochrome template language as the meters.
+/// Launcher glyph shown when all three widgets are hidden: the AppIcon
+/// gauge redrawn 1:1 in the monochrome template language — same 150°/240°
+/// sweep with the gap at the bottom, same 42%-along needle, same ring hub.
 public func makeFallbackImage() -> NSImage {
     let image = NSImage(size: NSSize(width: 18, height: 13), flipped: false) { _ in
         NSColor.black.set()
-        let center = NSPoint(x: 9, y: 5)
+        // Sized to sit optically centered: the stroke crowns at y≈11.9 and
+        // the gap endpoints land at y≈1.1, mirroring the logo's margins.
+        let center = NSPoint(x: 9, y: 6.5)
+        let radius: CGFloat = 4.7
         let arc = NSBezierPath()
-        arc.appendArc(withCenter: center, radius: 5.2, startAngle: 150, endAngle: 30, clockwise: true)
-        arc.lineWidth = 1.6
+        arc.appendArc(withCenter: center, radius: radius,
+                      startAngle: gaugeArcStart, endAngle: gaugeArcStart - gaugeArcSweep,
+                      clockwise: true)
+        arc.lineWidth = radius * 92 / 300
         arc.lineCapStyle = .round
         arc.stroke()
-        let a = 54.0 * Double.pi / 180.0
-        let tip = NSPoint(x: center.x + cos(a) * 3.9, y: center.y + sin(a) * 3.9)
+        // Logo-exact needle: 42% along the sweep, 232/300 of the radius.
+        let a = Double(gaugeArcStart - gaugeArcSweep * gaugeNeedleT) * Double.pi / 180.0
+        let tip = NSPoint(x: center.x + cos(a) * radius * 232 / 300,
+                          y: center.y + sin(a) * radius * 232 / 300)
         let needle = NSBezierPath()
         needle.move(to: center)
         needle.line(to: tip)
-        needle.lineWidth = 1.4
+        needle.lineWidth = radius * 34 / 300
         needle.lineCapStyle = .round
         needle.stroke()
-        NSBezierPath(ovalIn: NSRect(x: center.x - 1.2, y: center.y - 1.2, width: 2.4, height: 2.4)).fill()
+        // Ring hub with a punched center, like the logo's white ring.
+        let hubR = radius * 56 / 300
+        NSBezierPath(ovalIn: NSRect(x: center.x - hubR, y: center.y - hubR,
+                                    width: hubR * 2, height: hubR * 2)).fill()
+        if let ctx = NSGraphicsContext.current {
+            ctx.saveGraphicsState()
+            ctx.compositingOperation = .destinationOut
+            let holeR = radius * 32 / 300
+            NSBezierPath(ovalIn: NSRect(x: center.x - holeR, y: center.y - holeR,
+                                        width: holeR * 2, height: holeR * 2)).fill()
+            ctx.restoreGraphicsState()
+        }
         return true
     }
     image.isTemplate = true
