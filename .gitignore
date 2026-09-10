@@ -1,0 +1,7 @@
+.build/
+*.o
+*.d
+ResourceMonitorWidget.app/
+.DS_Store
+.swiftpm/
+Tests/SnapshotResults/
