@@ -154,7 +154,7 @@ struct PanelAppRow: View {
             }
             .padding(.vertical, 4)
             .padding(.horizontal, 8)
-            .background(hovering ? RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5)) : nil)
+            .background(hovering ? RoundedRectangle(cornerRadius: 8).fill(.primary.opacity(0.15)) : nil)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -196,11 +196,13 @@ struct PanelToggleRow: View {
                 Spacer()
             }
             .padding(.vertical, 4)
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 6)
             // Full-bleed rows: without this the pill hugs the text and the
             // panel shows dead margin on the trailing side.
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background((hovering || previewHover) ? RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5)) : nil)
+            // Translucent primary (not quaternary): stays readable in dark
+            // mode, where a light pill would wash out the white text.
+            .background((hovering || previewHover) ? RoundedRectangle(cornerRadius: 8).fill(.primary.opacity(0.15)) : nil)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -222,6 +224,11 @@ struct FallbackPopover: View {
             ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                 PanelToggleRow(title: row.title, action: { onTap(row.kind) }, previewHover: previewHover)
             }
+            Divider()
+                .padding(.top, 2)
+            Text("Right-click a widget for more options")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 13)
         .padding(.top, 8)

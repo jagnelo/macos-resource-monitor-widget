@@ -103,8 +103,50 @@ final class MonitorTests: XCTestCase {
         XCTAssertTrue(c.monitoringActive)
     }
 
-    func testReopenRestoresAllWidgets() async throws {
+    func testSamplersFollowWidgetVisibility() async throws {
+        // Per-widget gating: each monitor runs only while its widget shows;
+        // the process sampler feeds the CPU and Memory popovers so it follows
+        // either. Hidden widgets cost zero sampling.
         let keys = ["showCPU", "showMEM", "showDisk"]
+        let saved = Dictionary(uniqueKeysWithValues: keys.map { ($0, UserDefaults.standard.object(forKey: $0)) })
+        defer {
+            for (k, v) in saved {
+                if let v { UserDefaults.standard.set(v, forKey: k) }
+                else { UserDefaults.standard.removeObject(forKey: k) }
+            }
+        }
+        for k in keys { UserDefaults.standard.set(true, forKey: k) }
+        let c = StatusBarController(cpu: CPUMonitor(), mem: MemoryMonitor(),
+                                    disk: DiskMonitor(), procs: ProcessMonitor())
+        c.start()
+        XCTAssertTrue(c.cpuSampling && c.memSampling && c.diskSampling && c.procsSampling)
+        XCTAssertTrue(c.monitoringActive)
+        // Hide Memory: only its sampler stops (procs stays — CPU visible).
+        UserDefaults.standard.set(false, forKey: "showMEM")
+        NotificationCenter.default.post(name: UserDefaults.didChangeNotification, object: nil)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertTrue(c.cpuSampling)
+        XCTAssertFalse(c.memSampling)
+        XCTAssertTrue(c.diskSampling)
+        XCTAssertTrue(c.procsSampling)
+        XCTAssertTrue(c.monitoringActive)
+        // Hide CPU too: procs loses its last consumer and stops.
+        UserDefaults.standard.set(false, forKey: "showCPU")
+        NotificationCenter.default.post(name: UserDefaults.didChangeNotification, object: nil)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertFalse(c.cpuSampling)
+        XCTAssertFalse(c.procsSampling)
+        XCTAssertTrue(c.diskSampling)
+        XCTAssertTrue(c.monitoringActive)
+        // Hide all: everything idles.
+        UserDefaults.standard.set(false, forKey: "showDisk")
+        NotificationCenter.default.post(name: UserDefaults.didChangeNotification, object: nil)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertFalse(c.cpuSampling || c.memSampling || c.diskSampling || c.procsSampling)
+        XCTAssertFalse(c.monitoringActive)
+    }
+
+    func testReopenRestoresAllWidgets() async throws {        let keys = ["showCPU", "showMEM", "showDisk"]
         let saved = Dictionary(uniqueKeysWithValues: keys.map { ($0, UserDefaults.standard.object(forKey: $0)) })
         defer {
             for (k, v) in saved {

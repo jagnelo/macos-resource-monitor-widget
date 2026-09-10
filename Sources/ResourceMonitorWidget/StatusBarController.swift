@@ -39,9 +39,15 @@ final class StatusBarController: NSObject {
     var isFallbackShown: Bool { fallbackItem.isVisible }
 
     private var refreshTimer: Timer?
-    /// Whether samplers are currently running. With every widget removed the
-    /// agent idles without sampling; reopening any widget restarts them.
+    /// Whether any sampler is running. With every widget removed the agent
+    /// idles without sampling; reopening any widget restarts them.
     var monitoringActive = false
+    /// Per-monitor running flags. Transitions only — restarting a running
+    /// sampler would re-prime CPU tick deltas (see CPUMonitor.start).
+    private(set) var cpuSampling = false
+    private(set) var memSampling = false
+    private(set) var diskSampling = false
+    private(set) var procsSampling = false
     private var defaultsToken: NSObjectProtocol?
     private var dismissToken: NSObjectProtocol?
     private var heightToken: NSObjectProtocol?
@@ -159,7 +165,7 @@ final class StatusBarController: NSObject {
         diskItem.isVisible = storedBool("showDisk", default: true)
         fallbackItem.isVisible = Self.fallbackVisible(
             cpuVisible: cpuItem.isVisible, memVisible: memItem.isVisible, diskVisible: diskItem.isVisible)
-        setMonitoring(cpuItem.isVisible || memItem.isVisible || diskItem.isVisible)
+        updateSamplers()
     }
 
     /// Fallback launcher visibility: shown if and only if no widget is
@@ -168,30 +174,43 @@ final class StatusBarController: NSObject {
         !(cpuVisible || memVisible || diskVisible)
     }
 
-    /// Starts samplers on the visible→any transition, stops them when the
-    /// last widget is removed. Idempotent: repeated calls with the same state
-    /// never restart running samplers (which would re-prime CPU deltas).
-    /// Covered by MonitorTests.
-    private func setMonitoring(_ on: Bool) {
-        guard on != monitoringActive else { return }
-        monitoringActive = on
-        guard on else {
-            cpu.stop(); mem.stop(); disk.stop(); procs.stop()
-            refreshTimer?.invalidate(); refreshTimer = nil
-            return
-        }
-        // Fixed cadence: CPU/RAM/apps every 5s, storage every 15s.
-        cpu.start(interval: 5.0)
-        mem.start(interval: 5.0)
-        disk.start(interval: 15.0)
-        procs.start(interval: 5.0)
-        refreshTimer?.invalidate()
-        refreshTimer = scheduleCommonTimer(interval: 5.0) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.applyVisibility()
-                self?.refresh()
+    /// Per-widget sampler gating: each monitor runs only while its widget is
+    /// visible; the process sampler feeds the CPU and Memory popovers so it
+    /// follows either. All hidden idles everything, including the refresh
+    /// timer. Covered by MonitorTests.
+    private func updateSamplers() {
+        setSampler(&cpuSampling, want: storedBool("showCPU", default: true),
+                   start: { cpu.start(interval: 5.0) }, stop: { cpu.stop() })
+        setSampler(&memSampling, want: storedBool("showMEM", default: true),
+                   start: { mem.start(interval: 5.0) }, stop: { mem.stop() })
+        setSampler(&diskSampling, want: storedBool("showDisk", default: true),
+                   start: { disk.start(interval: 15.0) }, stop: { disk.stop() })
+        setSampler(&procsSampling,
+                   want: storedBool("showCPU", default: true) || storedBool("showMEM", default: true),
+                   start: { procs.start(interval: 5.0) }, stop: { procs.stop() })
+        monitoringActive = cpuSampling || memSampling || diskSampling || procsSampling
+        if monitoringActive {
+            // Fixed cadence: applyVisibility + icon refresh every 5s.
+            if refreshTimer == nil {
+                refreshTimer = scheduleCommonTimer(interval: 5.0) { [weak self] _ in
+                    Task { @MainActor [weak self] in
+                        self?.applyVisibility()
+                        self?.refresh()
+                    }
+                }
             }
+        } else {
+            refreshTimer?.invalidate()
+            refreshTimer = nil
         }
+    }
+
+    /// Idempotent per-monitor start/stop: transitions only, so a running
+    /// sampler (notably CPU tick deltas) is never restarted.
+    private func setSampler(_ running: inout Bool, want: Bool, start: () -> Void, stop: () -> Void) {
+        guard want != running else { return }
+        running = want
+        if want { start() } else { stop() }
     }
 
     /// Reopening the app with everything hidden restores all widgets — the
@@ -339,7 +358,7 @@ final class StatusBarController: NSObject {
 
     /// Row data driving the fallback panel. Covered by FallbackWidgetTests.
     func fallbackRows() -> [(title: String, kind: MeterKind)] {
-        [MeterKind.cpu, .memory, .disk].map { (title: widgetTitle($0), kind: $0) }
+        [MeterKind.cpu, .memory, .disk].map { (title: "Monitor \(widgetTitle($0))", kind: $0) }
     }
 
     /// Re-add a widget from the fallback launcher. Covered by FallbackWidgetTests.

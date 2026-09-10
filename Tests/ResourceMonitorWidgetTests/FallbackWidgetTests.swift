@@ -25,7 +25,7 @@ final class FallbackWidgetTests: XCTestCase {
 
     func testFallbackRowsListEveryWidget() {
         let rows = makeController().fallbackRows()
-        XCTAssertEqual(rows.map(\.title), ["CPU", "Memory", "Storage"])
+        XCTAssertEqual(rows.map(\.title), ["Monitor CPU", "Monitor Memory", "Monitor Storage"])
         XCTAssertEqual(rows.map { $0.kind }, [.cpu, .memory, .disk])
     }
 
