@@ -96,4 +96,12 @@ final class SnapshotTests: XCTestCase {
             onTap: { _ in })))
     }
 
+    func testFallbackPopoverHoverSnapshot() throws {
+        // Locks the hover geometry: every pill must span the full row so no
+        // dead margin survives on the trailing side.
+        try verifyBothAppearances("fallback-hover", AnyView(FallbackPopover(
+            rows: [("CPU", .cpu), ("Memory", .memory), ("Storage", .disk)],
+            onTap: { _ in }, previewHover: true)))
+    }
+
 }

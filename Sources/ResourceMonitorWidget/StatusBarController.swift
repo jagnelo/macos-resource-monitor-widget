@@ -374,8 +374,12 @@ final class StatusBarController: NSObject {
         helper.level = .popUpMenu
         helper.isReleasedWhenClosed = false
         helper.orderFrontRegardless()
+        // Track like a widget panel: row taps dismiss via openMenu, and
+        // strip clicks dismiss too. openKind stays nil (no widget).
+        openMenu = menu
         menu.popUp(positioning: nil, at: NSPoint(x: 0.5, y: 1.0), in: helper.contentView!)
         helper.orderOut(nil)
+        openMenu = nil
         fallbackDismissedAt = Date()
     }
 

@@ -179,6 +179,8 @@ struct PanelAppRow: View {
 struct PanelToggleRow: View {
     let title: String
     let action: () -> Void
+    /// Testing seam: force the hover pill without mouse events.
+    var previewHover = false
     @State private var hovering = false
 
     var body: some View {
@@ -195,7 +197,10 @@ struct PanelToggleRow: View {
             }
             .padding(.vertical, 4)
             .padding(.horizontal, 8)
-            .background(hovering ? RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5)) : nil)
+            // Full-bleed rows: without this the pill hugs the text and the
+            // panel shows dead margin on the trailing side.
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background((hovering || previewHover) ? RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5)) : nil)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -209,11 +214,13 @@ struct PanelToggleRow: View {
 struct FallbackPopover: View {
     let rows: [(title: String, kind: MeterKind)]
     let onTap: (MeterKind) -> Void
+    /// Testing seam: force all hover pills without mouse events.
+    var previewHover = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                PanelToggleRow(title: row.title) { onTap(row.kind) }
+                PanelToggleRow(title: row.title, action: { onTap(row.kind) }, previewHover: previewHover)
             }
         }
         .padding(.horizontal, 13)
