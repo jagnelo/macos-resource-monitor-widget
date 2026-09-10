@@ -5,7 +5,7 @@
 set -euo pipefail
 
 APPNAME="ResourceMonitorWidget"
-BUNDLE="$APPNAME.app"
+BUNDLE="Resource Monitor.app"
 
 CONFIG="debug"
 
@@ -43,6 +43,6 @@ PLIST
 /usr/bin/codesign --force --deep --sign - "$BUNDLE" 2>/dev/null || true
 
 echo "Built $BUNDLE"
-echo "Launch with: open $BUNDLE"
+echo "Launch with: open \"$BUNDLE\""
 echo "Menu bar icons appear right away (CPU / Memory / Storage)."
 echo "Per-icon % and widget visibility toggles live in each widget's right-click menu."

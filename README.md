@@ -14,8 +14,8 @@ Battery's own spec.
 ## Run it
 
 ```sh
-./build-app.sh            # debug build -> ResourceMonitorWidget.app
-open ResourceMonitorWidget.app
+./build-app.sh            # debug build -> Resource Monitor.app
+open "Resource Monitor.app"
 
 ./build-app.sh --release  # optimized build for daily use
 ```
@@ -74,7 +74,7 @@ Nuclear reset (clears stale Control Center registrations and prefs):
 ```sh
 pkill -x ResourceMonitorWidget
 defaults delete com.example.resourcemonitorwidget
-open ResourceMonitorWidget.app
+open "Resource Monitor.app"
 ```
 
 ## How it maps to the Battery widget
