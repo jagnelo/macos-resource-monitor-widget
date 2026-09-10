@@ -28,7 +28,7 @@ cat > "$CONTENTS/Info.plist" <<'PLIST'
 <dict>
   <key>CFBundleExecutable</key><string>ResourceMonitorWidget</string>
   <key>CFBundleIdentifier</key><string>com.example.resourcemonitorwidget</string>
-  <key>CFBundleName</key><string>ResourceMonitorWidget</string>
+  <key>CFBundleName</key><string>Resource Monitor</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>0.1</string>
   <key>CFBundleVersion</key><string>1</string>
