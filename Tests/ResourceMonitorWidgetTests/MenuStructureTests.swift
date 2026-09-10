@@ -1,5 +1,4 @@
 import AppKit
-import ServiceManagement
 import XCTest
 @testable import ResourceMonitorWidget
 
@@ -15,18 +14,16 @@ final class MenuStructureTests: XCTestCase {
     func testContextMenuMatchesBatteryItemSet() {
         for kind in [MeterKind.cpu, .memory, .disk] {
             let menu = makeController().contextMenu(for: kind)
-            XCTAssertEqual(menu.items.count, 5, "kind \(kind)")
+            XCTAssertEqual(menu.items.count, 4, "kind \(kind)")
             XCTAssertEqual(menu.items[0].title, "Show Percentage")
             XCTAssertEqual(menu.items[1].title, "Widgets")
             XCTAssertNotNil(menu.items[1].submenu)
             XCTAssertTrue(menu.items[2].isSeparatorItem)
-            XCTAssertEqual(menu.items[3].title, "Open at Login")
-            XCTAssertEqual(menu.items[4].title, "Remove")
+            XCTAssertEqual(menu.items[3].title, "Remove")
             XCTAssertEqual(menu.items[0].representedObject as? Int, kind.rawValue)
-            XCTAssertEqual(menu.items[4].representedObject as? Int, kind.rawValue)
+            XCTAssertEqual(menu.items[3].representedObject as? Int, kind.rawValue)
             XCTAssertNotNil(menu.items[0].action)
             XCTAssertNotNil(menu.items[3].action)
-            XCTAssertNotNil(menu.items[4].action)
         }
     }
 
@@ -65,13 +62,6 @@ final class MenuStructureTests: XCTestCase {
         XCTAssertFalse(UserDefaults.standard.bool(forKey: "showMEM"))
         c.toggleWidget(item)
         XCTAssertTrue(UserDefaults.standard.bool(forKey: "showMEM"))
-    }
-
-    func testOpenAtLoginReflectsServiceStatus() {
-        let expected: NSControl.StateValue = SMAppService.mainApp.status == .enabled ? .on : .off
-        for kind in [MeterKind.cpu, .memory, .disk] {
-            XCTAssertEqual(makeController().contextMenu(for: kind).items[3].state, expected)
-        }
     }
 
     func testContextMenuUsesVibrantDarkAppearance() {

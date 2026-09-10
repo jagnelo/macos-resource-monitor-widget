@@ -45,4 +45,4 @@ PLIST
 echo "Built $BUNDLE"
 echo "Launch with: open $BUNDLE"
 echo "Menu bar icons appear right away (CPU / Memory / Storage)."
-echo "Open at Login + per-icon % toggles live in the app's Settings (right-click a menu icon area or use the Settings window via the app menu when focused)."
+echo "Per-icon % and widget visibility toggles live in each widget's right-click menu."

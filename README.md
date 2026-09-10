@@ -46,8 +46,9 @@ or rendering change, never copy them from another Mac.
   app icons.
 - **Right-click** → context menu: ✓ **Show Percentage**, a **Widgets** submenu
   to show/hide each widget (identical in every widget's menu), separator,
-  **Open at Login**, **Remove**. There is no Settings window and no Quit —
-  like Battery, the agent simply runs while logged in.
+  **Remove**. There is no Settings window and no Quit — like Battery, the
+  agent simply runs while logged in (launch registration is automatic; the
+  only opt-out is System Settings → General → Login Items).
 - Removed widgets come back from any visible widget's **Widgets** submenu,
   or by relaunching the app, which restores all widgets when everything is
   hidden.

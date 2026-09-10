@@ -1,3 +1,4 @@
+import ServiceManagement
 import SwiftUI
 import AppKit
 
@@ -43,6 +44,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "showCPU": true, "showMEM": true, "showDisk": true,
             "showCPUPct": false, "showMEMPct": false, "showDiskPct": false,
         ])
+        // Battery-style lifecycle: always launch at login unless the user
+        // removes it in System Settings → General → Login Items (the only
+        // opt-out macOS offers third-party agents — there is intentionally
+        // no in-app toggle). Failures (e.g. unsigned dev builds) are silent.
+        // A standard packaged install only needs a first launch after the
+        // drag-to-Applications copy for this to take effect.
+        if SMAppService.mainApp.status != .enabled {
+            try? SMAppService.mainApp.register()
+        }
         // Sweep legacy visibility keys written by the MenuBarExtra era's
         // scene-managed items — they could leave a widget permanently hidden.
         UserDefaults.standard.removeObject(forKey: "NSStatusItem VisibleCC Item-0")

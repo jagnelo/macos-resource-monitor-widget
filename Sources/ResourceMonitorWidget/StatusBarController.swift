@@ -1,6 +1,5 @@
 import AppKit
 import Foundation
-import ServiceManagement
 import SwiftUI
 
 /// Owns the three menu-bar widgets as classic NSStatusItems with
@@ -507,11 +506,6 @@ extension StatusBarController {
 
         menu.addItem(.separator())
 
-        let login = NSMenuItem(title: "Open at Login", action: #selector(toggleLogin(_:)), keyEquivalent: "")
-        login.target = self
-        login.state = SMAppService.mainApp.status == .enabled ? .on : .off
-        menu.addItem(login)
-
         let remove = NSMenuItem(title: "Remove", action: #selector(removeWidget(_:)), keyEquivalent: "")
         remove.target = self
         remove.representedObject = kind.rawValue
@@ -553,15 +547,4 @@ extension StatusBarController {
         applyVisibility()
     }
 
-    @objc func toggleLogin(_ sender: NSMenuItem) {
-        do {
-            if SMAppService.mainApp.status == .enabled {
-                try SMAppService.mainApp.unregister()
-            } else {
-                try SMAppService.mainApp.register()
-            }
-        } catch {
-            // Leave state untouched; the menu reflects reality on next open.
-        }
-    }
 }
