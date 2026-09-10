@@ -50,8 +50,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // no in-app toggle). Failures (e.g. unsigned dev builds) are silent.
         // A standard packaged install only needs a first launch after the
         // drag-to-Applications copy for this to take effect.
-        if SMAppService.mainApp.status != .enabled {
-            try? SMAppService.mainApp.register()
+        // TEMP-DIAG: login registration tracing, removed after diagnosis.
+        do {
+            let status = SMAppService.mainApp.status
+            Self.loginDiag("status=\(status.rawValue) bundle=\(Bundle.main.bundleIdentifier ?? "?")")
+            if status != .enabled {
+                try SMAppService.mainApp.register()
+                Self.loginDiag("register ok")
+            }
+        } catch {
+            Self.loginDiag("register failed: \(error)")
         }
         // Sweep legacy visibility keys written by the MenuBarExtra era's
         // scene-managed items — they could leave a widget permanently hidden.
@@ -86,5 +94,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         controller?.restoreAllWidgets()
         return true
+    }
+
+    // TEMP-DIAG: removed after login diagnosis.
+    static func loginDiag(_ line: String) {
+        let entry = "[\(Int(Date().timeIntervalSince1970 * 1000))] \(line)\n"
+        let url = URL(fileURLWithPath: "/tmp/rmw_login.log")
+        if let handle = try? FileHandle(forWritingTo: url) {
+            defer { try? handle.close() }
+            _ = try? handle.seekToEndOfFile()
+            _ = try? handle.write(entry.data(using: .utf8) ?? Data())
+        } else {
+            try? entry.data(using: .utf8)?.write(to: url)
+        }
     }
 }

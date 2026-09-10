@@ -32,6 +32,11 @@ final class StatusBarController: NSObject {
     private var cpuItem: NSStatusItem!
     private var memItem: NSStatusItem!
     private var diskItem: NSStatusItem!
+    /// Shown only when all three widgets are hidden: the re-entry point.
+    private var fallbackItem: NSStatusItem!
+    var fallbackDismissedAt: Date?
+    /// Test hook: whether the fallback launcher is currently visible.
+    var isFallbackShown: Bool { fallbackItem.isVisible }
 
     private var refreshTimer: Timer?
     /// Whether samplers are currently running. With every widget removed the
@@ -78,6 +83,7 @@ final class StatusBarController: NSObject {
         cpuItem = makeItem(kind: .cpu)
         memItem = makeItem(kind: .memory)
         diskItem = makeItem(kind: .disk)
+        fallbackItem = makeFallbackItem()
         defaultsToken = NotificationCenter.default.addObserver(
             forName: UserDefaults.didChangeNotification, object: nil, queue: .main
         ) { [weak self] _ in
@@ -151,7 +157,15 @@ final class StatusBarController: NSObject {
         cpuItem.isVisible = storedBool("showCPU", default: true)
         memItem.isVisible = storedBool("showMEM", default: true)
         diskItem.isVisible = storedBool("showDisk", default: true)
+        fallbackItem.isVisible = Self.fallbackVisible(
+            cpuVisible: cpuItem.isVisible, memVisible: memItem.isVisible, diskVisible: diskItem.isVisible)
         setMonitoring(cpuItem.isVisible || memItem.isVisible || diskItem.isVisible)
+    }
+
+    /// Fallback launcher visibility: shown if and only if no widget is
+    /// visible. Pure rule; covered by FallbackWidgetTests.
+    static func fallbackVisible(cpuVisible: Bool, memVisible: Bool, diskVisible: Bool) -> Bool {
+        !(cpuVisible || memVisible || diskVisible)
     }
 
     /// Starts samplers on the visible→any transition, stops them when the
@@ -249,6 +263,112 @@ final class StatusBarController: NSObject {
             return
         }
         presentMenu(contentMenu(for: kind), kind: kind)
+    }
+
+    // MARK: - Fallback launcher
+
+    /// Idle gauge shown only when all three widgets are hidden. Gauge-only —
+    /// no live value — so it reads as off until a widget is re-enabled.
+    private func makeFallbackItem() -> NSStatusItem {
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        if let button = item.button {
+            button.tag = 99
+            button.target = self
+            button.action = #selector(fallbackToggle(_:))
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            button.imagePosition = .imageOnly
+            button.image = makeFallbackImage()
+            button.toolTip = "Resource Monitor"
+        }
+        return item
+    }
+
+    @objc private func fallbackToggle(_ sender: NSStatusBarButton) {
+        guard let type = NSApp.currentEvent?.type else { return }
+        if shouldSuppressFallbackToggle() { return }
+        if type == .rightMouseUp {
+            presentFallbackMenu(fallbackContextMenu())
+        } else {
+            presentFallbackMenu(fallbackSelectorMenu())
+        }
+    }
+
+    /// Consume-once suppression for fallback toggle doubles: a click that
+    /// dismissed a fallback menu can re-deliver its action right after; it
+    /// must stay closed. Same freshness window as widget toggles.
+    /// Covered by FallbackWidgetTests.
+    func shouldSuppressFallbackToggle(now: Date = Date()) -> Bool {
+        guard let at = fallbackDismissedAt else { return false }
+        fallbackDismissedAt = nil
+        return now.timeIntervalSince(at) < StatusBarController.toggleFreshnessWindow
+    }
+
+    /// Flat checklist shown on left-click when no widgets are visible.
+    /// Covered by FallbackWidgetTests.
+    func fallbackSelectorMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.appearance = NSAppearance(named: .vibrantDark)
+        for kind in [MeterKind.cpu, .memory, .disk] {
+            menu.addItem(widgetToggleItem(for: kind))
+        }
+        return menu
+    }
+
+    /// Right-click menu for the fallback launcher: same Widgets submenu as
+    /// every widget, without Show Percentage (nothing to show it on) and
+    /// without Remove (the launcher IS the re-entry point).
+    /// Covered by FallbackWidgetTests.
+    func fallbackContextMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.appearance = NSAppearance(named: .vibrantDark)
+        let widgets = NSMenuItem(title: "Widgets", action: nil, keyEquivalent: "")
+        widgets.submenu = widgetsSubmenu()
+        menu.addItem(widgets)
+        return menu
+    }
+
+    /// One checkmark row per widget, reflecting live visibility prefs.
+    /// Shared by every Widgets submenu and the fallback selector menu.
+    func widgetToggleItem(for kind: MeterKind) -> NSMenuItem {
+        let item = NSMenuItem(title: widgetTitle(kind), action: #selector(toggleWidget(_:)), keyEquivalent: "")
+        item.target = self
+        item.representedObject = kind.rawValue
+        item.state = storedBool(showKey(for: kind), default: true) ? .on : .off
+        return item
+    }
+
+    /// The Widgets submenu content shared by all context menus.
+    func widgetsSubmenu() -> NSMenu {
+        let sub = NSMenu()
+        for kind in [MeterKind.cpu, .memory, .disk] {
+            sub.addItem(widgetToggleItem(for: kind))
+        }
+        return sub
+    }
+
+    /// Presents a fallback menu glued under the menu bar at the click x,
+    /// mirroring presentMenu's anchoring without widget state (the launcher
+    /// has no popover, highlight, or switch target).
+    private func presentFallbackMenu(_ menu: NSMenu) {
+        let mouse = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
+        guard let screen else { return }
+        let visible = screen.visibleFrame
+        let x = min(max(mouse.x, visible.minX + 6), visible.maxX - 6)
+        let barBottom = screen.frame.maxY - menuBarHeight
+        let helper = NSPanel(contentRect: NSRect(x: x, y: barBottom, width: 1, height: 1),
+                             styleMask: [.borderless, .nonactivatingPanel],
+                             backing: .buffered, defer: false)
+        helper.isOpaque = false
+        helper.backgroundColor = .clear
+        helper.hasShadow = false
+        helper.ignoresMouseEvents = true
+        helper.level = .popUpMenu
+        helper.isReleasedWhenClosed = false
+        helper.orderFrontRegardless()
+        menu.popUp(positioning: nil, at: NSPoint(x: 0.5, y: 1.0), in: helper.contentView!)
+        helper.orderOut(nil)
+        fallbackDismissedAt = Date()
     }
 
     // MARK: - Menus
@@ -493,15 +613,7 @@ extension StatusBarController {
         menu.addItem(pct)
 
         let widgets = NSMenuItem(title: "Widgets", action: nil, keyEquivalent: "")
-        let sub = NSMenu()
-        for kind in [MeterKind.cpu, .memory, .disk] {
-            let item = NSMenuItem(title: widgetTitle(kind), action: #selector(toggleWidget(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = kind.rawValue
-            item.state = storedBool(showKey(for: kind), default: true) ? .on : .off
-            sub.addItem(item)
-        }
-        widgets.submenu = sub
+        widgets.submenu = widgetsSubmenu()
         menu.addItem(widgets)
 
         menu.addItem(.separator())

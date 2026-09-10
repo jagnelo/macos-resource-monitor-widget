@@ -42,4 +42,12 @@ final class IconTests: XCTestCase {
         XCTAssertEqual(quantizedFraction(0.55), 0.6, accuracy: 0.0001)
         XCTAssertEqual(quantizedFraction(1.7), 1)
     }
+
+    func testFallbackImageIsIdleGaugeOnly() {
+        // The all-widgets-hidden launcher must read as off: 18×13 glyph
+        // geometry, template tint, empty gauge, no percentage text.
+        let image = makeFallbackImage()
+        XCTAssertTrue(image.isTemplate)
+        XCTAssertEqual(image.size, NSSize(width: 18, height: 13))
+    }
 }

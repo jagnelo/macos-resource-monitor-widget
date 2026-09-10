@@ -60,6 +60,32 @@ public func makeStatusImage(kind: MeterKind, fraction: Double, percentText: Stri
     return image
 }
 
+/// Launcher glyph shown when all three widgets are hidden: a miniature
+/// gauge in the same monochrome template language as the meters.
+public func makeFallbackImage() -> NSImage {
+    let image = NSImage(size: NSSize(width: 18, height: 13), flipped: false) { _ in
+        NSColor.black.set()
+        let center = NSPoint(x: 9, y: 5)
+        let arc = NSBezierPath()
+        arc.appendArc(withCenter: center, radius: 5.2, startAngle: 150, endAngle: 30, clockwise: true)
+        arc.lineWidth = 1.6
+        arc.lineCapStyle = .round
+        arc.stroke()
+        let a = 54.0 * Double.pi / 180.0
+        let tip = NSPoint(x: center.x + cos(a) * 3.9, y: center.y + sin(a) * 3.9)
+        let needle = NSBezierPath()
+        needle.move(to: center)
+        needle.line(to: tip)
+        needle.lineWidth = 1.4
+        needle.lineCapStyle = .round
+        needle.stroke()
+        NSBezierPath(ovalIn: NSRect(x: center.x - 1.2, y: center.y - 1.2, width: 2.4, height: 2.4)).fill()
+        return true
+    }
+    image.isTemplate = true
+    return image
+}
+
 private func drawCPUMeter(in rect: NSRect, fraction f: Double) {
     let body = NSRect(x: 3, y: 1.5, width: 12, height: 10)
     NSBezierPath(roundedRect: body, xRadius: 2.5, yRadius: 2.5).withLineWidth(1.3).stroke()
