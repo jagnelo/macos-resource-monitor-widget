@@ -1,6 +1,5 @@
 import SwiftUI
 import AppKit
-import ServiceManagement
 
 extension Notification.Name {
     static let dismissWidgetMenu = Notification.Name("ResourceMonitorWidget.dismissWidgetMenu")
@@ -173,30 +172,6 @@ struct PanelAppRow: View {
     }
 }
 
-struct PanelSettingsLink: View {
-    @State private var hovering = false
-
-    var body: some View {
-        Button(action: {
-            NotificationCenter.default.post(name: .dismissWidgetMenu, object: nil)
-            SettingsWindowController.shared.show()
-        }) {
-            HStack {
-                Text("Settings…")
-                    .font(.system(size: 13))
-                Spacer()
-            }
-            .padding(.vertical, 4)
-            .padding(.horizontal, 8)
-            .background(hovering ? RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5)) : nil)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, -8)
-        .onHover { hovering = $0 }
-    }
-}
-
 struct CPUPopover: View {
     let cpu: CPUMonitor
     let procs: ProcessMonitor
@@ -223,9 +198,6 @@ struct CPUPopover: View {
                     }
                 }
             }
-            Divider()
-                .padding(.horizontal, -8)
-            PanelSettingsLink()
         }
         .padding(.horizontal, 13)
         .padding(.top, 8)
@@ -262,9 +234,6 @@ struct MemoryPopover: View {
                     }
                 }
             }
-            Divider()
-                .padding(.horizontal, -8)
-            PanelSettingsLink()
         }
         .padding(.horizontal, 13)
         .padding(.top, 8)
@@ -297,57 +266,11 @@ struct DiskPopover: View {
                     }
                 }
             }
-            Divider()
-                .padding(.horizontal, -8)
-            PanelSettingsLink()
         }
         .padding(.horizontal, 13)
         .padding(.top, 8)
         .padding(.bottom, 1)
         .frame(width: 290, alignment: .leading)
         .reportPanelHeight()
-    }
-}
-
-// MARK: - Settings (widget visibility + login only)
-
-struct SettingsView: View {
-    @AppStorage("showCPU") var showCPU = true
-    @AppStorage("showMEM") var showMEM = true
-    @AppStorage("showDisk") var showDisk = true
-    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
-
-    var body: some View {
-        Form {
-            Section("Menu Bar Widgets") {
-                Toggle("Show CPU", isOn: $showCPU)
-                Toggle("Show Memory", isOn: $showMEM)
-                Toggle("Show Storage", isOn: $showDisk)
-            }
-            Section("General") {
-                Toggle("Open at Login", isOn: $launchAtLogin)
-                    .onChange(of: launchAtLogin) { toggleLogin() }
-                Button("Quit ResourceMonitorWidget") {
-                    NSApplication.shared.terminate(nil)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .font(.system(size: 12))
-            }
-            Text("Missing an icon? Check System Settings → Menu Bar → Allow in the Menu Bar, and make room: Tahoe hides extras behind the notch when the bar is crowded.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .formStyle(.grouped)
-        .frame(width: 320, height: 340)
-    }
-
-    private func toggleLogin() {
-        do {
-            if launchAtLogin { try SMAppService.mainApp.register() }
-            else { try SMAppService.mainApp.unregister() }
-        } catch {
-            launchAtLogin.toggle()
-        }
     }
 }

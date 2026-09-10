@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import ServiceManagement
 import SwiftUI
 
 /// Owns the three menu-bar widgets as classic NSStatusItems with
@@ -34,6 +35,9 @@ final class StatusBarController: NSObject {
     private var diskItem: NSStatusItem!
 
     private var refreshTimer: Timer?
+    /// Whether samplers are currently running. With every widget removed the
+    /// agent idles without sampling; reopening any widget restarts them.
+    var monitoringActive = false
     private var defaultsToken: NSObjectProtocol?
     private var dismissToken: NSObjectProtocol?
     private var heightToken: NSObjectProtocol?
@@ -103,17 +107,8 @@ final class StatusBarController: NSObject {
         stripMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             Task { @MainActor [weak self] in self?.stripMouseDown() }
         }
-        // Fixed cadence: CPU/RAM/apps every 5s, storage every 15s.
-        cpu.start(interval: 5.0)
-        mem.start(interval: 5.0)
-        disk.start(interval: 15.0)
-        procs.start(interval: 5.0)
-        refreshTimer = scheduleCommonTimer(interval: 5.0) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.applyVisibility()
-                self?.refresh()
-            }
-        }
+        // Samplers start only while at least one widget is visible (gated in
+        // applyVisibility); a fully-removed trio idles silently.
         applyVisibility()
         refresh()
         // Pre-warm menu content off the critical path so the first open of
@@ -157,6 +152,43 @@ final class StatusBarController: NSObject {
         cpuItem.isVisible = storedBool("showCPU", default: true)
         memItem.isVisible = storedBool("showMEM", default: true)
         diskItem.isVisible = storedBool("showDisk", default: true)
+        setMonitoring(cpuItem.isVisible || memItem.isVisible || diskItem.isVisible)
+    }
+
+    /// Starts samplers on the visible→any transition, stops them when the
+    /// last widget is removed. Idempotent: repeated calls with the same state
+    /// never restart running samplers (which would re-prime CPU deltas).
+    /// Covered by MonitorTests.
+    private func setMonitoring(_ on: Bool) {
+        guard on != monitoringActive else { return }
+        monitoringActive = on
+        guard on else {
+            cpu.stop(); mem.stop(); disk.stop(); procs.stop()
+            refreshTimer?.invalidate(); refreshTimer = nil
+            return
+        }
+        // Fixed cadence: CPU/RAM/apps every 5s, storage every 15s.
+        cpu.start(interval: 5.0)
+        mem.start(interval: 5.0)
+        disk.start(interval: 15.0)
+        procs.start(interval: 5.0)
+        refreshTimer?.invalidate()
+        refreshTimer = scheduleCommonTimer(interval: 5.0) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.applyVisibility()
+                self?.refresh()
+            }
+        }
+    }
+
+    /// Reopening the app with everything hidden restores all widgets — the
+    /// only re-entry path besides System Settings. Covered by MonitorTests.
+    func restoreAllWidgets() {
+        UserDefaults.standard.set(true, forKey: showKey(for: .cpu))
+        UserDefaults.standard.set(true, forKey: showKey(for: .memory))
+        UserDefaults.standard.set(true, forKey: showKey(for: .disk))
+        UserDefaults.standard.synchronize()
+        applyVisibility()
     }
 
     // MARK: - Icon content
@@ -433,7 +465,24 @@ extension StatusBarController {
         pct.state = storedBool(pctKey(for: kind), default: false) ? .on : .off
         menu.addItem(pct)
 
+        let widgets = NSMenuItem(title: "Widgets", action: nil, keyEquivalent: "")
+        let sub = NSMenu()
+        for kind in [MeterKind.cpu, .memory, .disk] {
+            let item = NSMenuItem(title: widgetTitle(kind), action: #selector(toggleWidget(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = kind.rawValue
+            item.state = storedBool(showKey(for: kind), default: true) ? .on : .off
+            sub.addItem(item)
+        }
+        widgets.submenu = sub
+        menu.addItem(widgets)
+
         menu.addItem(.separator())
+
+        let login = NSMenuItem(title: "Open at Login", action: #selector(toggleLogin(_:)), keyEquivalent: "")
+        login.target = self
+        login.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        menu.addItem(login)
 
         let remove = NSMenuItem(title: "Remove", action: #selector(removeWidget(_:)), keyEquivalent: "")
         remove.target = self
@@ -454,9 +503,37 @@ extension StatusBarController {
     @objc private func removeWidget(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? Int,
               let kind = MeterKind(rawValue: raw) else { return }
-        // Re-add any time from the Settings window's Menu Bar Widgets list
-        // (or by relaunching the app, which offers Settings when hidden).
+        // Re-add any time from another widget's Widgets submenu (or by
+        // relaunching the app, which restores all widgets when hidden).
         UserDefaults.standard.set(false, forKey: showKey(for: kind))
         applyVisibility()
+    }
+
+    private func widgetTitle(_ kind: MeterKind) -> String {
+        switch kind {
+        case .cpu: return "CPU"
+        case .memory: return "Memory"
+        case .disk: return "Storage"
+        }
+    }
+
+    @objc func toggleWidget(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? Int,
+              let kind = MeterKind(rawValue: raw) else { return }
+        let key = showKey(for: kind)
+        UserDefaults.standard.set(!storedBool(key, default: true), forKey: key)
+        applyVisibility()
+    }
+
+    @objc func toggleLogin(_ sender: NSMenuItem) {
+        do {
+            if SMAppService.mainApp.status == .enabled {
+                try SMAppService.mainApp.unregister()
+            } else {
+                try SMAppService.mainApp.register()
+            }
+        } catch {
+            // Leave state untouched; the menu reflects reality on next open.
+        }
     }
 }

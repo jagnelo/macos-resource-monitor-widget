@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 import XCTest
 @testable import ResourceMonitorWidget
 
@@ -14,14 +15,62 @@ final class MenuStructureTests: XCTestCase {
     func testContextMenuMatchesBatteryItemSet() {
         for kind in [MeterKind.cpu, .memory, .disk] {
             let menu = makeController().contextMenu(for: kind)
-            XCTAssertEqual(menu.items.count, 3, "kind \(kind)")
+            XCTAssertEqual(menu.items.count, 5, "kind \(kind)")
             XCTAssertEqual(menu.items[0].title, "Show Percentage")
-            XCTAssertTrue(menu.items[1].isSeparatorItem)
-            XCTAssertEqual(menu.items[2].title, "Remove")
+            XCTAssertEqual(menu.items[1].title, "Widgets")
+            XCTAssertNotNil(menu.items[1].submenu)
+            XCTAssertTrue(menu.items[2].isSeparatorItem)
+            XCTAssertEqual(menu.items[3].title, "Open at Login")
+            XCTAssertEqual(menu.items[4].title, "Remove")
             XCTAssertEqual(menu.items[0].representedObject as? Int, kind.rawValue)
-            XCTAssertEqual(menu.items[2].representedObject as? Int, kind.rawValue)
+            XCTAssertEqual(menu.items[4].representedObject as? Int, kind.rawValue)
             XCTAssertNotNil(menu.items[0].action)
-            XCTAssertNotNil(menu.items[2].action)
+            XCTAssertNotNil(menu.items[3].action)
+            XCTAssertNotNil(menu.items[4].action)
+        }
+    }
+
+    func testWidgetsSubmenuStaysInSyncAcrossMenus() {
+        // Every widget's menu must show identical visibility states.
+        let keys = ["showCPU", "showMEM", "showDisk"]
+        let saved = Dictionary(uniqueKeysWithValues: keys.map { ($0, UserDefaults.standard.object(forKey: $0)) })
+        defer {
+            for (k, v) in saved {
+                if let v { UserDefaults.standard.set(v, forKey: k) }
+                else { UserDefaults.standard.removeObject(forKey: k) }
+            }
+        }
+        UserDefaults.standard.set(true, forKey: "showCPU")
+        UserDefaults.standard.set(false, forKey: "showMEM")
+        UserDefaults.standard.set(true, forKey: "showDisk")
+        for kind in [MeterKind.cpu, .memory, .disk] {
+            let sub = makeController().contextMenu(for: kind).items[1].submenu!
+            XCTAssertEqual(sub.items.map(\.title), ["CPU", "Memory", "Storage"])
+            XCTAssertEqual(sub.items.map { $0.state }, [.on, .off, .on], "kind \(kind)")
+            XCTAssertEqual(sub.items.map { $0.representedObject as? Int }, [0, 1, 2] as [Int?])
+        }
+    }
+
+    func testWidgetsSubmenuTogglesVisibility() {
+        let saved = UserDefaults.standard.object(forKey: "showMEM")
+        defer {
+            if let saved { UserDefaults.standard.set(saved, forKey: "showMEM") }
+            else { UserDefaults.standard.removeObject(forKey: "showMEM") }
+        }
+        let c = makeController()
+        c.start()
+        UserDefaults.standard.set(true, forKey: "showMEM")
+        let item = c.contextMenu(for: .cpu).items[1].submenu!.items[1]
+        c.toggleWidget(item)
+        XCTAssertFalse(UserDefaults.standard.bool(forKey: "showMEM"))
+        c.toggleWidget(item)
+        XCTAssertTrue(UserDefaults.standard.bool(forKey: "showMEM"))
+    }
+
+    func testOpenAtLoginReflectsServiceStatus() {
+        let expected: NSControl.StateValue = SMAppService.mainApp.status == .enabled ? .on : .off
+        for kind in [MeterKind.cpu, .memory, .disk] {
+            XCTAssertEqual(makeController().contextMenu(for: kind).items[3].state, expected)
         }
     }
 

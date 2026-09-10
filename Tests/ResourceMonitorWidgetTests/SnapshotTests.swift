@@ -90,7 +90,4 @@ final class SnapshotTests: XCTestCase {
         try verifyBothAppearances("disk", AnyView(DiskPopover(disk: Self.fixtureDisk())))
     }
 
-    func testSettingsSnapshot() throws {
-        try verifyBothAppearances("settings", AnyView(SettingsView()))
-    }
 }

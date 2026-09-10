@@ -77,4 +77,50 @@ final class MonitorTests: XCTestCase {
         XCTAssertTrue(procs.significantCPUApps.allSatisfy { $0.cpuPercent >= 20 })
         XCTAssertTrue(procs.significantMemApps.allSatisfy { $0.rssBytes >= 500_000_000 })
     }
+
+    func testMonitoringIdlesWhenAllWidgetsHidden() async throws {
+        // Battery lifecycle: with every widget removed the agent idles
+        // without sampling; showing any widget restarts samplers.
+        let keys = ["showCPU", "showMEM", "showDisk"]
+        let saved = Dictionary(uniqueKeysWithValues: keys.map { ($0, UserDefaults.standard.object(forKey: $0)) })
+        defer {
+            for (k, v) in saved {
+                if let v { UserDefaults.standard.set(v, forKey: k) }
+                else { UserDefaults.standard.removeObject(forKey: k) }
+            }
+        }
+        let c = StatusBarController(cpu: CPUMonitor(), mem: MemoryMonitor(),
+                                   disk: DiskMonitor(), procs: ProcessMonitor())
+        c.start()
+        XCTAssertTrue(c.monitoringActive)
+        for k in keys { UserDefaults.standard.set(false, forKey: k) }
+        NotificationCenter.default.post(name: UserDefaults.didChangeNotification, object: nil)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertFalse(c.monitoringActive)
+        UserDefaults.standard.set(true, forKey: "showCPU")
+        NotificationCenter.default.post(name: UserDefaults.didChangeNotification, object: nil)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertTrue(c.monitoringActive)
+    }
+
+    func testReopenRestoresAllWidgets() async throws {
+        let keys = ["showCPU", "showMEM", "showDisk"]
+        let saved = Dictionary(uniqueKeysWithValues: keys.map { ($0, UserDefaults.standard.object(forKey: $0)) })
+        defer {
+            for (k, v) in saved {
+                if let v { UserDefaults.standard.set(v, forKey: k) }
+                else { UserDefaults.standard.removeObject(forKey: k) }
+            }
+        }
+        let c = StatusBarController(cpu: CPUMonitor(), mem: MemoryMonitor(),
+                                   disk: DiskMonitor(), procs: ProcessMonitor())
+        c.start()
+        for k in keys { UserDefaults.standard.set(false, forKey: k) }
+        NotificationCenter.default.post(name: UserDefaults.didChangeNotification, object: nil)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertFalse(c.monitoringActive)
+        c.restoreAllWidgets()
+        for k in keys { XCTAssertTrue(UserDefaults.standard.bool(forKey: k), k) }
+        XCTAssertTrue(c.monitoringActive)
+    }
 }

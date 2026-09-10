@@ -43,11 +43,14 @@ or rendering change, never copy them from another Mac.
 
 - **Left-click** → info menu: header + sparkline (CPU), wired/compressed/swap
   (Memory), volumes (Storage), "Using Significant CPU/Memory" app list with
-  app icons, and a "Settings…" menu entry at the bottom.
-- **Right-click** → context menu, item-for-item like Battery: ✓ **Show
-  Percentage**, separator, **Remove**. Quit lives in Settings.
-- Removed widgets come back via the Settings window (Menu Bar Widgets list)
-  or by relaunching the app, which offers Settings when everything is hidden.
+  app icons.
+- **Right-click** → context menu: ✓ **Show Percentage**, a **Widgets** submenu
+  to show/hide each widget (identical in every widget's menu), separator,
+  **Open at Login**, **Remove**. There is no Settings window and no Quit —
+  like Battery, the agent simply runs while logged in.
+- Removed widgets come back from any visible widget's **Widgets** submenu,
+  or by relaunching the app, which restores all widgets when everything is
+  hidden.
 
 ## If an icon is missing
 
@@ -62,7 +65,8 @@ icons without telling the app:
    (~52pt per widget with % on), but a crowded bar still parks extras behind
    the notch — the single biggest space saver is turning Apple's Battery %
    off. ⌘-drag icons to reorder.
-3. In-app fallback: Settings → Menu Bar Widgets toggles (same effect).
+3. In-app fallback: any visible widget's right-click menu → **Widgets** submenu
+   (same toggles).
 
 Nuclear reset (clears stale Control Center registrations and prefs):
 
