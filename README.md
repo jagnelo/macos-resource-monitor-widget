@@ -26,7 +26,7 @@ Or open the folder in Xcode (File > Open > this folder) and press Run —
 ## Tests
 
 ```sh
-swift test                                   # 27 tests: logic + live-sampler
+swift test                                   # 44 tests: logic + live-sampler
                                              # invariants + visual snapshots
 RMW_RECORD=1 swift test --filter SnapshotTests   # re-record reference images
                                                  # after intentional UI changes
@@ -43,9 +43,9 @@ or rendering change, never copy them from another Mac.
 
 - **Left-click** → info menu: header + sparkline (CPU), wired/compressed/swap
   (Memory), volumes (Storage), "Using Significant CPU/Memory" app list with
-  app icons, and a per-widget "…Settings…" menu entry at the bottom.
+  app icons, and a "Settings…" menu entry at the bottom.
 - **Right-click** → context menu, item-for-item like Battery: ✓ **Show
-  Percentage**, **Remove from Menu Bar**. Quit lives in Settings.
+  Percentage**, separator, **Remove**. Quit lives in Settings.
 - Removed widgets come back via the Settings window (Menu Bar Widgets list)
   or by relaunching the app, which offers Settings when everything is hidden.
 
@@ -59,7 +59,7 @@ icons without telling the app:
    their own entries anywhere else in System Settings).
 2. Make room: on notch Macs the usable strip starts right of the notch
    (x=825 on a 13" Air at 1470pt). This trio is sized to fit right of it
-   (~67pt per widget with % on), but a crowded bar still parks extras behind
+   (~52pt per widget with % on), but a crowded bar still parks extras behind
    the notch — the single biggest space saver is turning Apple's Battery %
    off. ⌘-drag icons to reorder.
 3. In-app fallback: Settings → Menu Bar Widgets toggles (same effect).
@@ -78,7 +78,7 @@ open ResourceMonitorWidget.app
 |---|---|
 | Monochrome icon, system font, % left | Template `NSImage`s (auto light/dark), 11pt menu-bar typeface, `%` left via `imageRight` |
 | Compact glyph | 18×13 flat 2D icons: CPU = rounded-square chip, Memory = DIMM stick with key notch, Storage = open-top container filling bottom-up in 10 discrete states |
-| Click → summary popover | Borderless panel per metric (plain rounded rect, no arrow, instant, glued under the bar; single shared panel so widgets never stack; stays open during ⌘⌃⇧4 captures) |
+| Click → summary popover | Real `NSMenu` per metric (system chrome, no arrow, instant, native exclusive dismissal; stays open during ⌘⌃⇧4 captures) |
 | CPU popover | Overall % + history sparkline + per-core grid. CPU values only |
 | Memory popover | Used/total + wired/compressed/swap. Byte values only |
 | Storage popover | Used/total + available/purgeable + volumes (no auto top-files: needs a full-disk scan + Full Disk Access prompt) |
@@ -103,3 +103,7 @@ open ResourceMonitorWidget.app
 2. Open at Login uses `SMAppService` — needs a signed bundle; ad-hoc sign (done
    by the script) is fine locally, Developer ID + notarization for sharing.
 3. No sandbox blockers; no Full Disk Access requested on purpose.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
