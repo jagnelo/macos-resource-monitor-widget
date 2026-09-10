@@ -73,13 +73,17 @@ public func makeStatusImage(kind: MeterKind, fraction: Double, percentText: Stri
 /// Launcher glyph shown when all three widgets are hidden: the AppIcon
 /// gauge redrawn 1:1 in the monochrome template language — same 150°/240°
 /// sweep with the gap at the bottom, same 42%-along needle, same ring hub.
+///
+/// A standard 18×18pt menu-bar extra (Apple HIG), so it sits next to native
+/// extras like Now Playing at the same size and alignment — not the 13pt
+/// Battery-style box the %-carrying widgets use.
 public func makeFallbackImage() -> NSImage {
-    let image = NSImage(size: NSSize(width: 18, height: 13), flipped: false) { _ in
+    let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
         NSColor.black.set()
-        // Sized to sit optically centered: the stroke crowns at y≈11.9 and
-        // the gap endpoints land at y≈1.1, mirroring the logo's margins.
-        let center = NSPoint(x: 9, y: 6.5)
-        let radius: CGFloat = 4.7
+        // Optically centered with native-extra margins: the stroke crowns
+        // at y≈16.7 and the gap endpoints land at y≈1.7.
+        let center = NSPoint(x: 9, y: 9.2)
+        let radius: CGFloat = 6.5
         let arc = NSBezierPath()
         arc.appendArc(withCenter: center, radius: radius,
                       startAngle: gaugeArcStart, endAngle: gaugeArcStart - gaugeArcSweep,
