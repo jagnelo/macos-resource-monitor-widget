@@ -90,4 +90,10 @@ final class SnapshotTests: XCTestCase {
         try verifyBothAppearances("disk", AnyView(DiskPopover(disk: Self.fixtureDisk())))
     }
 
+    func testFallbackPopoverSnapshot() throws {
+        try verifyBothAppearances("fallback", AnyView(FallbackPopover(
+            rows: [("CPU", .cpu), ("Memory", .memory), ("Storage", .disk)],
+            onTap: { _ in })))
+    }
+
 }

@@ -302,15 +302,31 @@ final class StatusBarController: NSObject {
     }
 
     /// Widget checklist shown on any click when no widgets are visible.
-    /// Standard popover-style menu like the widget panels — deliberately
-    /// not the vibrantDark right-click context menu.
-    /// Covered by FallbackWidgetTests.
+    /// Hosted SwiftUI like the widget panels — same menu chrome and the same
+    /// Battery-style hover pills — deliberately not the vibrantDark
+    /// right-click context menu. Covered by FallbackWidgetTests.
     func fallbackSelectorMenu() -> NSMenu {
+        let root = NSHostingView(rootView: FallbackPopover(rows: fallbackRows()) { [weak self] kind in
+            self?.enableWidget(kind)
+        })
+        root.setFrameSize(NSSize(width: menuContentWidth, height: max(root.fittingSize.height, 60)))
         let menu = NSMenu()
-        for kind in [MeterKind.cpu, .memory, .disk] {
-            menu.addItem(widgetToggleItem(for: kind))
-        }
+        menu.autoenablesItems = false
+        let item = NSMenuItem()
+        item.view = root
+        menu.addItem(item)
         return menu
+    }
+
+    /// Row data driving the fallback panel. Covered by FallbackWidgetTests.
+    func fallbackRows() -> [(title: String, kind: MeterKind)] {
+        [MeterKind.cpu, .memory, .disk].map { (title: widgetTitle($0), kind: $0) }
+    }
+
+    /// Re-add a widget from the fallback launcher. Covered by FallbackWidgetTests.
+    func enableWidget(_ kind: MeterKind) {
+        UserDefaults.standard.set(true, forKey: showKey(for: kind))
+        applyVisibility()
     }
 
     /// One checkmark row per widget, reflecting live visibility prefs.

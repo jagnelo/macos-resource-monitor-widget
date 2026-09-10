@@ -172,6 +172,57 @@ struct PanelAppRow: View {
     }
 }
 
+/// Toggle row for the fallback launcher: same Battery-style hover pill as
+/// PanelAppRow (8pt gray pill bleeding past the content padding to end near
+/// the popover edge) — keep the two in sync. No checkmark: the launcher only
+/// ever shows while every widget is hidden, so each row is a re-add action.
+struct PanelToggleRow: View {
+    let title: String
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: {
+            // Clicks on custom menu-item views don't end menu tracking on
+            // their own — dismiss first, then act (same as PanelAppRow).
+            NotificationCenter.default.post(name: .dismissWidgetMenu, object: nil)
+            action()
+        }) {
+            HStack(spacing: 8) {
+                Text(title)
+                    .font(.system(size: 13))
+                Spacer()
+            }
+            .padding(.vertical, 4)
+            .padding(.horizontal, 8)
+            .background(hovering ? RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5)) : nil)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, -8)
+        .onHover { hovering = $0 }
+    }
+}
+
+/// Launcher panel: the same menu chrome, width, padding and hover pills as
+/// the widget popovers — one re-add row per widget.
+struct FallbackPopover: View {
+    let rows: [(title: String, kind: MeterKind)]
+    let onTap: (MeterKind) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                PanelToggleRow(title: row.title) { onTap(row.kind) }
+            }
+        }
+        .padding(.horizontal, 13)
+        .padding(.top, 8)
+        .padding(.bottom, 1)
+        .frame(width: 290, alignment: .leading)
+    }
+}
+
 struct CPUPopover: View {
     let cpu: CPUMonitor
     let procs: ProcessMonitor

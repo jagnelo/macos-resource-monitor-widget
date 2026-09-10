@@ -4,27 +4,13 @@ import XCTest
 
 /// Fallback launcher: when every widget is hidden a gauge-only item stays in
 /// the bar as the re-entry point. Docker-style: any click opens the same
-/// standard-appearing menu listing all three widgets with live checkmarks.
+/// hosted panel — same menu chrome and hover pills as the widget popovers —
+/// with one re-add row per widget.
 @MainActor
 final class FallbackWidgetTests: XCTestCase {
     private func makeController() -> StatusBarController {
         StatusBarController(cpu: CPUMonitor(), mem: MemoryMonitor(),
                             disk: DiskMonitor(), procs: ProcessMonitor())
-    }
-
-    private func withVisibility(cpu: Bool, mem: Bool, disk: Bool, _ body: () -> Void) {
-        let keys = ["showCPU": cpu, "showMEM": mem, "showDisk": disk]
-        let saved = Dictionary(uniqueKeysWithValues: keys.keys.map { ($0, UserDefaults.standard.object(forKey: $0)) })
-        defer {
-            for (k, v) in saved {
-                if let v { UserDefaults.standard.set(v, forKey: k) }
-                else { UserDefaults.standard.removeObject(forKey: k) }
-            }
-        }
-        UserDefaults.standard.set(cpu, forKey: "showCPU")
-        UserDefaults.standard.set(mem, forKey: "showMEM")
-        UserDefaults.standard.set(disk, forKey: "showDisk")
-        body()
     }
 
     func testFallbackVisibleOnlyWhenAllWidgetsHidden() {
@@ -37,22 +23,22 @@ final class FallbackWidgetTests: XCTestCase {
         }
     }
 
-    func testFallbackSelectorListsEveryWidgetWithLiveCheckmarks() {
-        withVisibility(cpu: true, mem: false, disk: true) {
-            let c = makeController()
-            let menu = c.fallbackSelectorMenu()
-            XCTAssertEqual(menu.items.map(\.title), ["CPU", "Memory", "Storage"])
-            XCTAssertEqual(menu.items.map { $0.state }, [.on, .off, .on])
-            XCTAssertEqual(menu.items.map { $0.representedObject as? Int }, [0, 1, 2] as [Int?])
-            for item in menu.items {
-                XCTAssertNotNil(item.action)
-                XCTAssertNotNil(item.target)
-            }
-            XCTAssertNil(menu.appearance, "selector must use the standard popover-style menu, not vibrantDark")
-        }
+    func testFallbackRowsListEveryWidget() {
+        let rows = makeController().fallbackRows()
+        XCTAssertEqual(rows.map(\.title), ["CPU", "Memory", "Storage"])
+        XCTAssertEqual(rows.map { $0.kind }, [.cpu, .memory, .disk])
     }
 
-    func testFallbackSelectorTogglesVisibility() {
+    func testFallbackSelectorIsHostedPopoverMenu() {
+        // Same presentation as the widget panels: one hosted SwiftUI view in
+        // standard menu chrome — never a stock menu, never vibrantDark.
+        let menu = makeController().fallbackSelectorMenu()
+        XCTAssertEqual(menu.items.count, 1)
+        XCTAssertNotNil(menu.items[0].view)
+        XCTAssertNil(menu.appearance)
+    }
+
+    func testFallbackRowReAddsWidget() {
         let saved = UserDefaults.standard.object(forKey: "showCPU")
         defer {
             if let saved { UserDefaults.standard.set(saved, forKey: "showCPU") }
@@ -61,16 +47,14 @@ final class FallbackWidgetTests: XCTestCase {
         let c = makeController()
         c.start()
         UserDefaults.standard.set(false, forKey: "showCPU")
-        c.toggleWidget(c.fallbackSelectorMenu().items[0])
+        c.enableWidget(.cpu)
         XCTAssertTrue(UserDefaults.standard.bool(forKey: "showCPU"))
-        c.toggleWidget(c.fallbackSelectorMenu().items[0])
-        XCTAssertFalse(UserDefaults.standard.bool(forKey: "showCPU"))
     }
 
     func testRemovingAllWidgetsShowsFallback() {
-        // End-to-end wiring: drive the real selector rows like a user
-        // removing every widget; the launcher must surface, and re-adding
-        // any widget must hide it again.
+        // End-to-end wiring: hide every widget through the real Widgets
+        // submenu rows; the launcher must surface, and re-adding any widget
+        // through the fallback path must hide it again.
         let keys = ["showCPU", "showMEM", "showDisk"]
         let saved = Dictionary(uniqueKeysWithValues: keys.map { ($0, UserDefaults.standard.object(forKey: $0)) })
         defer {
@@ -85,11 +69,12 @@ final class FallbackWidgetTests: XCTestCase {
         let c = makeController()
         c.start()
         XCTAssertFalse(c.isFallbackShown)
-        for item in c.fallbackSelectorMenu().items {
-            c.toggleWidget(item)
+        for kind in [MeterKind.cpu, .memory, .disk] {
+            let sub = c.contextMenu(for: kind).items[1].submenu!
+            c.toggleWidget(sub.items[kind.rawValue])
         }
         XCTAssertTrue(c.isFallbackShown, "hiding every widget must surface the fallback launcher")
-        c.toggleWidget(c.fallbackSelectorMenu().items[0])
+        c.enableWidget(.cpu)
         XCTAssertFalse(c.isFallbackShown)
     }
 
