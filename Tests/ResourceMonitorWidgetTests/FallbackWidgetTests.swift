@@ -31,11 +31,23 @@ final class FallbackWidgetTests: XCTestCase {
 
     func testFallbackSelectorIsHostedPopoverMenu() {
         // Same presentation as the widget panels: one hosted SwiftUI view in
-        // standard menu chrome — never a stock menu, never vibrantDark.
+        // standard menu chrome — never a stock menu, never vibrantDark. And
+        // sized to its short content, not a 290pt panel.
         let menu = makeController().fallbackSelectorMenu()
         XCTAssertEqual(menu.items.count, 1)
-        XCTAssertNotNil(menu.items[0].view)
+        let width = menu.items[0].view?.frame.width ?? 0
+        XCTAssertGreaterThan(width, 80)
+        XCTAssertLessThan(width, 290)
         XCTAssertNil(menu.appearance)
+    }
+
+    func testFallbackAnchorUsesNarrowMenuWidth() {
+        // anchorX keeps the menu's right edge on screen; a narrow fallback
+        // panel clamps later than a 316pt widget panel.
+        XCTAssertEqual(StatusBarController.anchorX(iconLeft: 1800, visibleMinX: 0, visibleMaxX: 1920, menuWidth: 150),
+                       1770)
+        XCTAssertEqual(StatusBarController.anchorX(iconLeft: 100, visibleMinX: 0, visibleMaxX: 1920, menuWidth: 150),
+                       100)
     }
 
     func testFallbackRowReAddsWidget() {

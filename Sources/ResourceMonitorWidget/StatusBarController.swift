@@ -309,7 +309,8 @@ final class StatusBarController: NSObject {
         let root = NSHostingView(rootView: FallbackPopover(rows: fallbackRows()) { [weak self] kind in
             self?.enableWidget(kind)
         })
-        root.setFrameSize(NSSize(width: menuContentWidth, height: max(root.fittingSize.height, 60)))
+        // Natural content width (a short checklist, not a 290pt panel).
+        root.setFrameSize(NSSize(width: root.fittingSize.width, height: max(root.fittingSize.height, 60)))
         let menu = NSMenu()
         menu.autoenablesItems = false
         let item = NSMenuItem()
@@ -356,7 +357,12 @@ final class StatusBarController: NSObject {
         let screen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
         guard let screen else { return }
         let visible = screen.visibleFrame
-        let x = min(max(mouse.x, visible.minX + 6), visible.maxX - 6)
+        // Same Battery left-alignment as the widget panels: anchor to the
+        // launcher's left edge, clamping by this menu's own narrow width.
+        let width = menu.items.first?.view?.frame.width ?? 316
+        let x = Self.anchorX(iconLeft: stripItemLeftEdge(at: mouse.x) ?? mouse.x,
+                             visibleMinX: visible.minX, visibleMaxX: visible.maxX,
+                             menuWidth: width)
         let barBottom = screen.frame.maxY - menuBarHeight
         let helper = NSPanel(contentRect: NSRect(x: x, y: barBottom, width: 1, height: 1),
                              styleMask: [.borderless, .nonactivatingPanel],

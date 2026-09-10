@@ -27,7 +27,7 @@ cat > "$CONTENTS/Info.plist" <<'PLIST'
 <plist version="1.0">
 <dict>
   <key>CFBundleExecutable</key><string>ResourceMonitorWidget</string>
-  <key>CFBundleIdentifier</key><string>com.example.resourcemonitorwidget</string>
+  <key>CFBundleIdentifier</key><string>com.jagnelo.resourcemonitorwidget</string>
   <key>CFBundleName</key><string>Resource Monitor</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>

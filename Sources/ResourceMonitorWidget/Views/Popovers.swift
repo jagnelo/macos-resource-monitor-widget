@@ -219,7 +219,7 @@ struct FallbackPopover: View {
         .padding(.horizontal, 13)
         .padding(.top, 8)
         .padding(.bottom, 1)
-        .frame(width: 290, alignment: .leading)
+        .frame(alignment: .leading)
     }
 }
 

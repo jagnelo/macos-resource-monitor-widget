@@ -73,7 +73,7 @@ Nuclear reset (clears stale Control Center registrations and prefs):
 
 ```sh
 pkill -x ResourceMonitorWidget
-defaults delete com.example.resourcemonitorwidget
+defaults delete com.jagnelo.resourcemonitorwidget
 open "Resource Monitor.app"
 ```
 
@@ -104,7 +104,9 @@ open "Resource Monitor.app"
 
 ## Before daily-driving / distributing
 
-1. Change `CFBundleIdentifier` in `build-app.sh` (`com.example…`) to your domain.
+1. The bundle ID is `com.jagnelo.resourcemonitorwidget` (set as `CFBundleIdentifier`
+   in `build-app.sh`). Changing it orphans prefs (they live under the old ID)
+   and the old Login Items entry — remove the stale entry by hand.
 2. Open at Login uses `SMAppService` — needs a signed bundle; ad-hoc sign (done
    by the script) is fine locally, Developer ID + notarization for sharing.
 3. No sandbox blockers; no Full Disk Access requested on purpose.
