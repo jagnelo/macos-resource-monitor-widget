@@ -284,13 +284,11 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func fallbackToggle(_ sender: NSStatusBarButton) {
-        guard let type = NSApp.currentEvent?.type else { return }
+        // Docker-style: left-click and right-click open the same menu.
+        // The click type only decides compatibility, never the content.
+        guard NSApp.currentEvent?.type != nil else { return }
         if shouldSuppressFallbackToggle() { return }
-        if type == .rightMouseUp {
-            presentFallbackMenu(fallbackContextMenu())
-        } else {
-            presentFallbackMenu(fallbackSelectorMenu())
-        }
+        presentFallbackMenu(fallbackSelectorMenu())
     }
 
     /// Consume-once suppression for fallback toggle doubles: a click that
@@ -303,27 +301,15 @@ final class StatusBarController: NSObject {
         return now.timeIntervalSince(at) < StatusBarController.toggleFreshnessWindow
     }
 
-    /// Flat checklist shown on left-click when no widgets are visible.
+    /// Widget checklist shown on any click when no widgets are visible.
+    /// Standard popover-style menu like the widget panels — deliberately
+    /// not the vibrantDark right-click context menu.
     /// Covered by FallbackWidgetTests.
     func fallbackSelectorMenu() -> NSMenu {
         let menu = NSMenu()
-        menu.appearance = NSAppearance(named: .vibrantDark)
         for kind in [MeterKind.cpu, .memory, .disk] {
             menu.addItem(widgetToggleItem(for: kind))
         }
-        return menu
-    }
-
-    /// Right-click menu for the fallback launcher: same Widgets submenu as
-    /// every widget, without Show Percentage (nothing to show it on) and
-    /// without Remove (the launcher IS the re-entry point).
-    /// Covered by FallbackWidgetTests.
-    func fallbackContextMenu() -> NSMenu {
-        let menu = NSMenu()
-        menu.appearance = NSAppearance(named: .vibrantDark)
-        let widgets = NSMenuItem(title: "Widgets", action: nil, keyEquivalent: "")
-        widgets.submenu = widgetsSubmenu()
-        menu.addItem(widgets)
         return menu
     }
 

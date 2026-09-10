@@ -3,9 +3,8 @@ import XCTest
 @testable import ResourceMonitorWidget
 
 /// Fallback launcher: when every widget is hidden a gauge-only item stays in
-/// the bar as the re-entry point. Left-click lists all three widgets with
-/// live checkmarks; right-click offers the same Widgets submenu without
-/// Show Percentage (nothing to show it on) or Remove (it IS the re-entry).
+/// the bar as the re-entry point. Docker-style: any click opens the same
+/// standard-appearing menu listing all three widgets with live checkmarks.
 @MainActor
 final class FallbackWidgetTests: XCTestCase {
     private func makeController() -> StatusBarController {
@@ -49,7 +48,7 @@ final class FallbackWidgetTests: XCTestCase {
                 XCTAssertNotNil(item.action)
                 XCTAssertNotNil(item.target)
             }
-            XCTAssertEqual(menu.appearance?.name, .vibrantDark)
+            XCTAssertNil(menu.appearance, "selector must use the standard popover-style menu, not vibrantDark")
         }
     }
 
@@ -66,21 +65,6 @@ final class FallbackWidgetTests: XCTestCase {
         XCTAssertTrue(UserDefaults.standard.bool(forKey: "showCPU"))
         c.toggleWidget(c.fallbackSelectorMenu().items[0])
         XCTAssertFalse(UserDefaults.standard.bool(forKey: "showCPU"))
-    }
-
-    func testFallbackContextMenuOmitsPercentageAndRemove() {
-        let c = makeController()
-        let menu = c.fallbackContextMenu()
-        XCTAssertEqual(menu.items.count, 1)
-        XCTAssertEqual(menu.items[0].title, "Widgets")
-        let sub = menu.items[0].submenu!
-        XCTAssertEqual(sub.items.map(\.title), ["CPU", "Memory", "Storage"])
-        for item in sub.items {
-            XCTAssertNotNil(item.action)
-        }
-        XCTAssertFalse(menu.items.contains { $0.title == "Show Percentage" })
-        XCTAssertFalse(menu.items.contains { $0.title == "Remove" })
-        XCTAssertEqual(menu.appearance?.name, .vibrantDark)
     }
 
     func testRemovingAllWidgetsShowsFallback() {
