@@ -172,10 +172,9 @@ struct PanelAppRow: View {
     }
 }
 
-/// Toggle row for the fallback launcher: same Battery-style hover pill as
-/// PanelAppRow (8pt gray pill bleeding past the content padding to end near
-/// the popover edge) — keep the two in sync. No checkmark: the launcher only
-/// ever shows while every widget is hidden, so each row is a re-add action.
+/// Toggle row for the fallback launcher: the same Battery-style hover pill
+/// fill as PanelAppRow (8pt quaternary pill) with tighter menu insets — keep
+/// the fill and radius in sync, the insets are deliberately menu-tuned.
 struct PanelToggleRow: View {
     let title: String
     let action: () -> Void
@@ -188,18 +187,20 @@ struct PanelToggleRow: View {
             NotificationCenter.default.post(name: .dismissWidgetMenu, object: nil)
             action()
         }) {
-            HStack(spacing: 8) {
+            // No inter-item gap: the row is a lone label, and HStack spacing
+            // would land entirely in the trailing margin.
+            HStack(spacing: 0) {
                 Text(title)
                     .font(.system(size: 13))
-                Spacer()
+                Spacer(minLength: 0)
             }
             .padding(.vertical, 4)
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 6)
             .background(hovering ? RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5)) : nil)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, -8)
+        .padding(.horizontal, -6)
         .onHover { hovering = $0 }
     }
 }
@@ -216,9 +217,9 @@ struct FallbackPopover: View {
                 PanelToggleRow(title: row.title) { onTap(row.kind) }
             }
         }
-        .padding(.horizontal, 13)
-        .padding(.top, 8)
-        .padding(.bottom, 1)
+        .padding(.horizontal, 8)
+        .padding(.top, 5)
+        .padding(.bottom, 5)
         .frame(alignment: .leading)
     }
 }

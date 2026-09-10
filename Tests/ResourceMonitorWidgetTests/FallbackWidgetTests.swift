@@ -36,7 +36,7 @@ final class FallbackWidgetTests: XCTestCase {
         let menu = makeController().fallbackSelectorMenu()
         XCTAssertEqual(menu.items.count, 1)
         let width = menu.items[0].view?.frame.width ?? 0
-        XCTAssertGreaterThan(width, 80)
+        XCTAssertGreaterThan(width, 50)
         XCTAssertLessThan(width, 290)
         XCTAssertNil(menu.appearance)
     }
