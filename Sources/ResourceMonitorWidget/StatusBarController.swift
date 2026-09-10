@@ -232,7 +232,16 @@ final class StatusBarController: NSObject {
         guard let kind = MeterKind(rawValue: sender.tag),
               let type = NSApp.currentEvent?.type else { return }
         if type == .rightMouseUp {
-            presentMenu(contextMenu(for: kind), kind: kind)
+            // Yield any open content menu first: a right-click explicitly
+            // asks for this widget's context menu, never the content menu
+            // an auto-open may just have shown.
+            if openMenu != nil {
+                if let open = openKind { setWidgetHighlight(false, for: open) }
+                openMenu?.cancelTrackingWithoutAnimation()
+                openMenu = nil
+                openKind = nil
+            }
+            popUp(contextMenu(for: kind), from: sender)
             return
         }
         if let just = justClosed,
@@ -297,7 +306,10 @@ final class StatusBarController: NSObject {
 
     /// Pure switch decision: open the targeted widget only when it differs
     /// from the just-closed one. Covered by WidgetSwitchTests.
-    func autoOpenTarget(closed: MeterKind, mouseKind: MeterKind?) -> MeterKind? {
+    func autoOpenTarget(closed: MeterKind, mouseKind: MeterKind?, rightDown: Bool = false) -> MeterKind? {
+        // A held right button means a context menu was requested, never
+        // content — opening content here would flash it under the context menu.
+        guard !rightDown else { return nil }
         guard let mouseKind, mouseKind != closed else { return nil }
         return mouseKind
     }
@@ -350,6 +362,21 @@ final class StatusBarController: NSObject {
         min(max(iconLeft, visibleMinX + 6), visibleMaxX - menuWidth)
     }
 
+    /// Gap between the menu bar's bottom edge and the context menu's top edge,
+    /// matching the Battery reference. Covered by MenuStructureTests.
+    static let contextMenuTopGap: CGFloat = 10
+
+    /// Presents a context menu from the status button itself — the long-proven
+    /// path: AppKit resolves the Tahoe proxy to the real icon internally, so
+    /// the menu sizes and positions natively with no scroll state.
+    private func popUp(_ menu: NSMenu, from button: NSStatusBarButton) {
+        button.highlight(true)
+        menu.popUp(positioning: nil,
+                   at: NSPoint(x: button.bounds.midX, y: button.bounds.minY - Self.contextMenuTopGap),
+                   in: button)
+        button.highlight(false)
+    }
+
     /// Presents a menu glued under the menu bar, left-aligned with the
     /// clicked icon like Battery. On Tahoe the status button lives in a
     /// degenerate offscreen proxy, so anchor from a 1×1 helper window at the
@@ -394,7 +421,8 @@ final class StatusBarController: NSObject {
         // our widgets — the system swallows that click instead of delivering
         // a fresh action, so open the targeted widget directly. One click
         // switches widgets; a second click is never needed.
-        if let target = autoOpenTarget(closed: kind, mouseKind: widgetKind(at: NSEvent.mouseLocation)) {
+        if let target = autoOpenTarget(closed: kind, mouseKind: widgetKind(at: NSEvent.mouseLocation),
+                                             rightDown: NSEvent.pressedMouseButtons & (1 << 1) != 0) {
             justClosed = nil
             presentMenu(contentMenu(for: target), kind: target)
         }

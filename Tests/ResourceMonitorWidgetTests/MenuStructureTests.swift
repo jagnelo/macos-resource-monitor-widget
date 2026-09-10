@@ -82,6 +82,12 @@ final class MenuStructureTests: XCTestCase {
         }
     }
 
+    func testContextMenuGapMatchesBattery() {
+        // Regression: the menu spawned flush under the bar; Battery floats it
+        // ~10pt below. Locks the anchor offset.
+        XCTAssertEqual(StatusBarController.contextMenuTopGap, 10)
+    }
+
     func testMenuHostsAreCachedPerWidget() {
         // Regression: rebuilding the hosting view on every open made opens
         // feel sluggish; each widget must reuse one host.

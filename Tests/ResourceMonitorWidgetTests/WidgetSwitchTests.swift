@@ -29,6 +29,16 @@ final class WidgetSwitchTests: XCTestCase {
         XCTAssertNil(c.autoOpenTarget(closed: .disk, mouseKind: .disk))
     }
 
+    func testRightClickNeverAutoOpensContent() {
+        // Regression: right-clicking widget B while A's content was open
+        // flashed B's content menu underneath B's context menu. A held right
+        // button means a context menu was requested — never content.
+        let c = makeController()
+        XCTAssertNil(c.autoOpenTarget(closed: .cpu, mouseKind: .memory, rightDown: true))
+        XCTAssertNil(c.autoOpenTarget(closed: .cpu, mouseKind: .cpu, rightDown: true))
+        XCTAssertNil(c.autoOpenTarget(closed: .cpu, mouseKind: nil, rightDown: true))
+    }
+
     func testClickOutsideWidgetsOpensNothing() {
         let c = makeController()
         XCTAssertNil(c.autoOpenTarget(closed: .cpu, mouseKind: nil))
