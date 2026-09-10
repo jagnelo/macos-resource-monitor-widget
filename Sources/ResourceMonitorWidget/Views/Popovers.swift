@@ -224,11 +224,6 @@ struct FallbackPopover: View {
             ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                 PanelToggleRow(title: row.title, action: { onTap(row.kind) }, previewHover: previewHover)
             }
-            Divider()
-                .padding(.top, 2)
-            Text("Right-click a widget for more options")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 13)
         .padding(.top, 8)
