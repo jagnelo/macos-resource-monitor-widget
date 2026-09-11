@@ -75,6 +75,10 @@ struct PanelSectionLabel: View {
     }
 }
 
+/// Duration matching the native Battery popover's list animations: entries
+/// under "Using Significant …" glide in and out instead of snapping.
+private let panelRowChangeDuration = 0.3
+
 /// Column count for the adaptive per-core grid: every core stays visible and
 /// columns rebalance into even rows up to a fixed cap (10 cores → 5+5,
 /// 12 → 6+6), so 4-core and 20-core machines both fill the width.
@@ -255,12 +259,17 @@ struct CPUPopover: View {
                     Text("No Apps Using Significant CPU")
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
+                        .transition(.opacity)
                 } else {
-                    ForEach(Array(procs.significantCPUApps.prefix(5).enumerated()), id: \.offset) { _, app in
+                    // Stable identity (not offsets): insertions and removals
+                    // animate as such instead of reshuffling in place.
+                    ForEach(Array(procs.significantCPUApps.prefix(5)), id: \.key) { app in
                         PanelAppRow(icon: app.icon, name: app.name, detail: String(format: "%.0f%%", app.cpuPercent))
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 }
             }
+            .animation(.easeInOut(duration: panelRowChangeDuration), value: procs.significantCPUApps.map(\.key))
         }
         .padding(.horizontal, 13)
         .padding(.top, 8)
@@ -291,12 +300,17 @@ struct MemoryPopover: View {
                     Text("No Apps Using Significant Memory")
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
+                        .transition(.opacity)
                 } else {
-                    ForEach(Array(procs.significantMemApps.prefix(5).enumerated()), id: \.offset) { _, app in
+                    // Stable identity (not offsets): insertions and removals
+                    // animate as such instead of reshuffling in place.
+                    ForEach(Array(procs.significantMemApps.prefix(5)), id: \.key) { app in
                         PanelAppRow(icon: app.icon, name: app.name, detail: humanBytes(app.rssBytes, binary: true))
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 }
             }
+            .animation(.easeInOut(duration: panelRowChangeDuration), value: procs.significantMemApps.map(\.key))
         }
         .padding(.horizontal, 13)
         .padding(.top, 8)
