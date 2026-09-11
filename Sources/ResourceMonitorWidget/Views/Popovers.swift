@@ -269,7 +269,11 @@ struct CPUPopover: View {
                     }
                 }
             }
-            .animation(.easeInOut(duration: panelRowChangeDuration), value: procs.significantCPUApps.map(\.key))
+            // Order-insensitive trigger: the 5s refresh constantly re-sorts by
+            // fluctuating values, and retriggering on every rank shuffle left
+            // rows permanently mid-flight, overlapped. Reorders snap as
+            // before; only insertions and removals glide.
+            .animation(.easeInOut(duration: panelRowChangeDuration), value: Set(procs.significantCPUApps.map(\.key)))
         }
         .padding(.horizontal, 13)
         .padding(.top, 8)
@@ -310,7 +314,11 @@ struct MemoryPopover: View {
                     }
                 }
             }
-            .animation(.easeInOut(duration: panelRowChangeDuration), value: procs.significantMemApps.map(\.key))
+            // Order-insensitive trigger: the 5s refresh constantly re-sorts by
+            // fluctuating values, and retriggering on every rank shuffle left
+            // rows permanently mid-flight, overlapped. Reorders snap as
+            // before; only insertions and removals glide.
+            .animation(.easeInOut(duration: panelRowChangeDuration), value: Set(procs.significantMemApps.map(\.key)))
         }
         .padding(.horizontal, 13)
         .padding(.top, 8)
