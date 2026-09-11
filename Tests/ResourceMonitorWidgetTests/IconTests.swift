@@ -116,7 +116,13 @@ final class IconTests: XCTestCase {
             heights.append(CGFloat(maxY - minY + 1))
         }
         XCTAssertEqual(heights.count, 3)
-        XCTAssertLessThanOrEqual(heights.max()! - heights.min()!, 1.0,
+        // Art boxes are constructed equal; allow 2px for antialias fringe at
+        // the round pin caps and curves. Catches any real drift (>= 3px).
+        for h in heights {
+            XCTAssertGreaterThanOrEqual(h, 10.0)
+            XCTAssertLessThanOrEqual(h, 13.0)
+        }
+        XCTAssertLessThanOrEqual(heights.max()! - heights.min()!, 2.0,
                                  "glyph art heights must match: \(heights)")
     }
 }
