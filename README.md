@@ -82,7 +82,7 @@ open "Resource Monitor.app"
 | Battery | This app |
 |---|---|
 | Monochrome icon, system font, % left | Template `NSImage`s (auto light/dark), 11pt menu-bar typeface, `%` left via `imageRight` |
-| Compact glyph | 18×13 flat 2D icons: CPU = rounded-square chip, Memory = DIMM stick with key notch, Storage = open-top container filling bottom-up in 10 discrete states |
+| Compact glyph | 18×13 flat 2D icons sharing one Battery-matched language (10pt art, 1.2 stroke): CPU = pinned chip, Memory = toothed stick, Storage = wireframe tank filling like a liquid level |
 | Click → summary popover | Real `NSMenu` per metric (system chrome, no arrow, instant, native exclusive dismissal; stays open during ⌘⌃⇧4 captures) |
 | CPU popover | Overall % + history sparkline + per-core grid. CPU values only |
 | Memory popover | Used/total + wired/compressed/swap. Byte values only |

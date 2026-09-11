@@ -86,4 +86,37 @@ final class IconTests: XCTestCase {
         XCTAssertGreaterThan(alpha(9, 16), 0.05, "crown must be inked")
         XCTAssertGreaterThan(alpha(13, 4), 0.05, "240° sweep must reach the lower-right quadrant")
     }
+
+    func testTrioSharesOneArtHeight() {
+        // Battery parity: all three glyphs share the same art height. Render
+        // each glyph-only icon 1x and compare ink bounding-box heights.
+        var heights: [CGFloat] = []
+        for kind in [MeterKind.cpu, .memory, .disk] {
+            let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 18, pixelsHigh: 13,
+                                       bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                       colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+            if let ctx = NSGraphicsContext.current?.cgContext {
+                ctx.translateBy(x: 0, y: 13)
+                ctx.scaleBy(x: 1, y: -1)
+            }
+            makeStatusImage(kind: kind, fraction: 0.65, percentText: nil)
+                .draw(in: NSRect(x: 0, y: 0, width: 18, height: 13))
+            NSGraphicsContext.restoreGraphicsState()
+            var minY = 13, maxY = -1
+            for y in 0..<13 {
+                for x in 0..<18 {
+                    if (rep.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.15 {
+                        minY = min(minY, y)
+                        maxY = max(maxY, y)
+                    }
+                }
+            }
+            heights.append(CGFloat(maxY - minY + 1))
+        }
+        XCTAssertEqual(heights.count, 3)
+        XCTAssertLessThanOrEqual(heights.max()! - heights.min()!, 1.0,
+                                 "glyph art heights must match: \(heights)")
+    }
 }
