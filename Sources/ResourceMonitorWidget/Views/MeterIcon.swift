@@ -8,13 +8,13 @@ import AppKit
 /// pressure, like Battery. Fill is quantized to 10 discrete states so the icon
 /// reads at a glance even with the % hidden, and doesn't flicker on tiny changes.
 ///
-/// - CPU: pinned chip, fills left-to-right
-/// - Memory: toothed stick, fills left-to-right
+/// - CPU: 12-pin chip, fills left-to-right
+/// - Memory: 5-pin DIP in Apple's memorychip language, fills left-to-right
 /// - Storage: wireframe tank, fills bottom-up like a liquid level
 ///
-/// All three share one Battery-matched visual language: 10pt art height in
-/// the 18×13 box, 1.2 stroke, 2.2 corner radius, tight fill gaps — measured
-/// off the SF battery symbol's outline, rim and fill proportions.
+/// All three share one Battery-matched visual language: matched art height
+/// and ~13pt art width in the 18×13 box, 1.2 stroke, tight fill gaps —
+/// measured off the SF battery symbol's outline, rim and fill proportions.
 public enum MeterKind: Int, Sendable { case cpu = 0, memory = 1, disk = 2 }
 
 private let meterStates = 10.0
@@ -38,27 +38,36 @@ public func makeStatusImage(kind: MeterKind, fraction: Double, percentText: Stri
     // carries far less button chrome than title+image, which is what keeps
     // the trio right of the notch on crowded menu bars. Text uses the same
     // menu-bar typeface; the template tint applies to text and glyph alike.
+    // Fixed % field sized to the widest reading ("100%"): value changes must
+    // never move the glyph or shift neighboring widgets. Text right-aligns
+    // in the field so it always hugs the glyph. Proportional digits keep the
+    // Battery-spec width; the field (not the digits) provides stability.
     let font = NSFont.systemFont(ofSize: 11, weight: .semibold)
-    var textSize = NSZeroSize
+    let pctAttrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.black]
+    let pctFull = NSAttributedString(string: "100%", attributes: pctAttrs).size()
+    let fullW = ceil(pctFull.width)
+    let textH = ceil(pctFull.height)
+    var textW: CGFloat = 0
+    var textX: CGFloat = 0
     if let percentText, !percentText.isEmpty {
-        textSize = NSAttributedString(string: percentText, attributes: [.font: font]).size()
+        let measured = ceil(NSAttributedString(string: percentText, attributes: pctAttrs).size().width)
+        textW = max(measured, fullW)
+        textX = textW - measured
     }
     // Same %↔glyph gap as the native Battery widget.
-    let gap: CGFloat = textSize.width > 0 ? 2 : 0
+    let gap: CGFloat = textW > 0 ? 2 : 0
     let iconW: CGFloat = 18
-    let totalW = ceil(textSize.width) + gap + iconW
+    let totalW = textW + gap + iconW
     let totalH: CGFloat = 13
     let image = NSImage(size: NSSize(width: totalW, height: totalH), flipped: false) { _ in
         NSColor.black.set()
-        if textSize.width > 0, let percentText {
-            NSAttributedString(
-                string: percentText,
-                attributes: [.font: font, .foregroundColor: NSColor.black]
-            ).draw(at: NSPoint(x: 0, y: (totalH - textSize.height) / 2))
+        if textW > 0, let percentText {
+            NSAttributedString(string: percentText, attributes: pctAttrs)
+                .draw(at: NSPoint(x: textX, y: (totalH - textH) / 2))
         }
         if let ctx = NSGraphicsContext.current?.cgContext {
             ctx.saveGState()
-            ctx.translateBy(x: ceil(textSize.width) + gap, y: 0)
+            ctx.translateBy(x: textW + gap, y: 0)
             let iconRect = NSRect(x: 0, y: 0, width: iconW, height: totalH)
             switch kind {
             case .cpu: drawCPUMeter(in: iconRect, fraction: quantizedFraction(fraction))
@@ -128,21 +137,21 @@ private func drawCPUMeter(in rect: NSRect, fraction f: Double) {
     let pins = NSBezierPath()
     pins.lineWidth = 1.2
     pins.lineCapStyle = .round
-    for x in [7.0, 9.0, 11.0] {
+    for x in [6.5, 9.0, 11.5] {
         pins.move(to: NSPoint(x: x, y: 11.0))
         pins.line(to: NSPoint(x: x, y: 12.1))
         pins.move(to: NSPoint(x: x, y: 2.0))
         pins.line(to: NSPoint(x: x, y: 0.9))
     }
     for y in [4.0, 6.5, 9.0] {
-        pins.move(to: NSPoint(x: 3.5, y: y))
-        pins.line(to: NSPoint(x: 5.0, y: y))
-        pins.move(to: NSPoint(x: 13.0, y: y))
-        pins.line(to: NSPoint(x: 14.5, y: y))
+        pins.move(to: NSPoint(x: 2.5, y: y))
+        pins.line(to: NSPoint(x: 4.0, y: y))
+        pins.move(to: NSPoint(x: 14.0, y: y))
+        pins.line(to: NSPoint(x: 15.5, y: y))
     }
     pins.stroke()
-    let body = NSRect(x: 5, y: 2, width: 8, height: 9)
-    NSBezierPath(roundedRect: body, xRadius: 2, yRadius: 2).withLineWidth(1.2).stroke()
+    let body = NSRect(x: 4, y: 2, width: 10, height: 9)
+    NSBezierPath(roundedRect: body, xRadius: 2.2, yRadius: 2.2).withLineWidth(1.2).stroke()
     let inset = body.insetBy(dx: 1.2, dy: 1.2)
     let w = inset.width * f
     if w > 0.4 {
@@ -151,13 +160,20 @@ private func drawCPUMeter(in rect: NSRect, fraction f: Double) {
 }
 
 private func drawMemoryMeter(in rect: NSRect, fraction f: Double) {
-    // Tall teeth with an off-center key notch read as a memory module; same
-    // 1.2 stroke and matched art height as its siblings.
-    for x in [2.2, 4.9, 7.6, 13.0] {
-        NSBezierPath(rect: NSRect(x: x, y: 1.0, width: 1.9, height: 2.0)).fill()
+    // Apple's memorychip language: wide body, five fine pins top and bottom,
+    // no side pins. Same 1.2 stroke and matched art height as its siblings.
+    let pins = NSBezierPath()
+    pins.lineWidth = 1.0
+    pins.lineCapStyle = .round
+    for x in [3.5, 6.25, 9.0, 11.75, 14.5] {
+        pins.move(to: NSPoint(x: x, y: 10.0))
+        pins.line(to: NSPoint(x: x, y: 11.6))
+        pins.move(to: NSPoint(x: x, y: 3.0))
+        pins.line(to: NSPoint(x: x, y: 1.4))
     }
-    let bar = NSRect(x: 1, y: 3, width: 16, height: 8.5)
-    NSBezierPath(roundedRect: bar, xRadius: 2.2, yRadius: 2.2).withLineWidth(1.2).stroke()
+    pins.stroke()
+    let bar = NSRect(x: 2.5, y: 3, width: 13, height: 7)
+    NSBezierPath(roundedRect: bar, xRadius: 2, yRadius: 2).withLineWidth(1.2).stroke()
     let inset = bar.insetBy(dx: 1.2, dy: 1.2)
     let w = inset.width * f
     if w > 0.5 {
@@ -171,13 +187,13 @@ private func drawDiskMeter(in rect: NSRect, fraction f: Double) {
     // NOTE: drawing-handler coordinates are flipped:false, i.e. origin is
     // bottom-left, y grows upward.
     let sil = NSBezierPath()
-    sil.move(to: NSPoint(x: 3.5, y: 4.0))
-    sil.line(to: NSPoint(x: 3.5, y: 9.7))
-    sil.curve(to: NSPoint(x: 14.5, y: 9.7),
-              controlPoint1: NSPoint(x: 6.0, y: 12.2), controlPoint2: NSPoint(x: 12.0, y: 12.2))
-    sil.line(to: NSPoint(x: 14.5, y: 4.0))
-    sil.curve(to: NSPoint(x: 3.5, y: 4.0),
-              controlPoint1: NSPoint(x: 11.5, y: 0.8), controlPoint2: NSPoint(x: 6.5, y: 0.8))
+    sil.move(to: NSPoint(x: 2.5, y: 4.2))
+    sil.line(to: NSPoint(x: 2.5, y: 9.7))
+    sil.curve(to: NSPoint(x: 15.5, y: 9.7),
+              controlPoint1: NSPoint(x: 5.0, y: 12.0), controlPoint2: NSPoint(x: 13.0, y: 12.0))
+    sil.line(to: NSPoint(x: 15.5, y: 4.2))
+    sil.curve(to: NSPoint(x: 2.5, y: 4.2),
+              controlPoint1: NSPoint(x: 12.5, y: 0.8), controlPoint2: NSPoint(x: 5.5, y: 0.8))
     sil.close()
     // Liquid level clipped to the full silhouette, deliberately overfilled
     // past the walls so no seam survives at the edges; the strokes drawn
@@ -185,9 +201,9 @@ private func drawDiskMeter(in rect: NSRect, fraction f: Double) {
     if let ctx = NSGraphicsContext.current {
         ctx.saveGraphicsState()
         sil.addClip()
-        let h = 9.7 * f
+        let h = 9.4 * f
         if h > 0.4 {
-            NSBezierPath(rect: NSRect(x: 3.0, y: 1.0, width: 12, height: 0.6 + min(h, 9.7))).fill()
+            NSBezierPath(rect: NSRect(x: 2.5, y: 1.0, width: 13, height: 0.6 + min(h, 9.4))).fill()
         }
         ctx.restoreGraphicsState()
     }
@@ -195,7 +211,7 @@ private func drawDiskMeter(in rect: NSRect, fraction f: Double) {
     sil.lineCapStyle = .round
     sil.lineJoinStyle = .round
     sil.stroke()
-    NSBezierPath(ovalIn: NSRect(x: 3.5, y: 7.9, width: 11, height: 3.6)).withLineWidth(1.2).stroke()
+    NSBezierPath(ovalIn: NSRect(x: 2.5, y: 8.4, width: 13, height: 2.6)).withLineWidth(1.2).stroke()
 }
 
 private extension NSBezierPath {
