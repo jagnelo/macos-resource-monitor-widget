@@ -22,19 +22,6 @@ final class IconTests: XCTestCase {
         XCTAssertTrue(pct.isTemplate)
     }
 
-    func testPercentageWidthStableAcrossValues() {
-        // Battery parity: changing values must not resize the widget (which
-        // shoves neighboring menu-bar items around). Every reading shares
-        // the 100%-sized field, text right-aligned against the glyph.
-        var widths = Set<CGFloat>()
-        for text in ["1%", "7%", "22%", "42%", "78%", "91%", "100%"] {
-            let image = makeStatusImage(kind: .cpu, fraction: 0.5, percentText: text)
-            widths.insert(image.size.width)
-            XCTAssertEqual(image.size.height, 13)
-        }
-        XCTAssertEqual(widths.count, 1, "widget width must not depend on the value: \(widths)")
-    }
-
     func testTrioMatchesBatterySpec() {
         // Battery parity contract: 11pt % text, 2pt gap, 18px glyph —
         // measured 52pt per widget / 156pt trio with "100%" on all three.

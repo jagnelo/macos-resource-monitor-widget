@@ -38,36 +38,31 @@ public func makeStatusImage(kind: MeterKind, fraction: Double, percentText: Stri
     // carries far less button chrome than title+image, which is what keeps
     // the trio right of the notch on crowded menu bars. Text uses the same
     // menu-bar typeface; the template tint applies to text and glyph alike.
-    // Fixed % field sized to the widest reading ("100%"): value changes must
-    // never move the glyph or shift neighboring widgets. Text right-aligns
-    // in the field so it always hugs the glyph. Proportional digits keep the
-    // Battery-spec width; the field (not the digits) provides stability.
+    // Like the native Battery widget, the % area is natural width with
+    // proportional digits: digit-count changes (100%→99%) resize the widget
+    // and shift neighbors. Battery gets away with it because its value
+    // barely moves; ours updates constantly, so expect more movement.
     let font = NSFont.systemFont(ofSize: 11, weight: .semibold)
-    let pctAttrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.black]
-    let pctFull = NSAttributedString(string: "100%", attributes: pctAttrs).size()
-    let fullW = ceil(pctFull.width)
-    let textH = ceil(pctFull.height)
-    var textW: CGFloat = 0
-    var textX: CGFloat = 0
+    var textSize = NSZeroSize
     if let percentText, !percentText.isEmpty {
-        let measured = ceil(NSAttributedString(string: percentText, attributes: pctAttrs).size().width)
-        textW = max(measured, fullW)
-        textX = textW - measured
+        textSize = NSAttributedString(string: percentText, attributes: [.font: font]).size()
     }
     // Same %↔glyph gap as the native Battery widget.
-    let gap: CGFloat = textW > 0 ? 2 : 0
+    let gap: CGFloat = textSize.width > 0 ? 2 : 0
     let iconW: CGFloat = 18
-    let totalW = textW + gap + iconW
+    let totalW = ceil(textSize.width) + gap + iconW
     let totalH: CGFloat = 13
     let image = NSImage(size: NSSize(width: totalW, height: totalH), flipped: false) { _ in
         NSColor.black.set()
-        if textW > 0, let percentText {
-            NSAttributedString(string: percentText, attributes: pctAttrs)
-                .draw(at: NSPoint(x: textX, y: (totalH - textH) / 2))
+        if textSize.width > 0, let percentText {
+            NSAttributedString(
+                string: percentText,
+                attributes: [.font: font, .foregroundColor: NSColor.black]
+            ).draw(at: NSPoint(x: 0, y: (totalH - textSize.height) / 2))
         }
         if let ctx = NSGraphicsContext.current?.cgContext {
             ctx.saveGState()
-            ctx.translateBy(x: textW + gap, y: 0)
+            ctx.translateBy(x: ceil(textSize.width) + gap, y: 0)
             let iconRect = NSRect(x: 0, y: 0, width: iconW, height: totalH)
             switch kind {
             case .cpu: drawCPUMeter(in: iconRect, fraction: quantizedFraction(fraction))
